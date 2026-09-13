@@ -1,0 +1,64 @@
+# Corpus selection (docs/architecture.md#corpus-selection).
+# Tier 1 and 2 are curated. Tier 3 is every other non-archived uc-cdis repo,
+# resolved from the GitHub API at build time, indexed README + docs/ only.
+
+org: uc-cdis
+
+tier1:  # documentation sites — all prose indexed
+  - docs-gen3
+  - gen3.org
+  - BRH-documentation
+
+tier2:  # core platform — prose, code, OpenAPI specs and dictionary schemas
+  - fence
+  - indexd
+  - sheepdog
+  - peregrine
+  - arborist
+  - guppy
+  - metadata-service
+  - hatchery
+  - gen3sdk-python
+  - gen3-helm
+  - data-portal
+  - tube
+  - pypfb
+  - dictionaryutils
+  - gen3-fuse
+  - cdis-data-client
+  - manifestservice
+  - requestor
+  - audit-service
+  - workspace-token-service
+  - ssjdispatcher
+  - gen3workflow
+  - cloud-automation
+  - gen3-code-vigil
+  - dataguids.org
+
+exclude:  # generated deployment config: high volume, near-duplicate, low answer value
+  - cdis-manifest
+  - gen3-gitops
+  - staging-HEAL-platform-documentation
+  - my-BRH-documentation
+
+# Paths skipped in every repo and tier.
+exclude_paths:
+  - .git/
+  - node_modules/
+  - vendor/
+  - dist/
+  - build/
+  - __pycache__/
+  - .venv/
+  - site-packages/
+  - migrations/versions/
+  - test_data/
+  - testData/
+  - fixtures/
+  - .min.js
+  - .min.css
+  - -lock.json
+  - .lock
+  - poetry.lock
+  - yarn.lock

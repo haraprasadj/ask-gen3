@@ -1,0 +1,34 @@
+name: index
+on:
+  schedule:
+    - cron: "17 3 * * 1"   # Mondays 03:17 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group ingest
+      - name: Build index
+        env:
+          GITHUB_TOKEN: ${{ github.token }}   # raises the API limit to 5000/hr
+        run: uv run python -m ingest.build --out index.db
+      - name: Summarise
+        run: |
+          ls -lh index.db
+          uv run python -c "import sqlite3,os;d=sqlite3.connect('index.db');\
+          print(dict(d.execute('select key,value from meta')));\
+          print(d.execute('select count(*) from repos').fetchone()[0],'repos')" \
+            >> $GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: index-db
+          path: index.db
+          retention-days: 30

@@ -1,0 +1,42 @@
+[project]
+name = "ask-gen3"
+version = "0.1.0"
+description = "Agentic RAG over the uc-cdis Gen3 source, answering questions with citations"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Hara Prasad Juvvala", email = "5363831+haraprasadj@users.noreply.github.com" }]
+dependencies = [
+    "fastapi>=0.141.1",
+    "fastembed>=0.8.0",
+    "openai>=3.13.0",
+    "sqlite-vec>=0.1.9",
+    "uvicorn>=0.52.4",
+]
+
+[dependency-groups]
+ingest = [
+    "pyyaml>=6.0.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "PL", "BLE", "FURB"]
+ignore = [
+  # A malformed file must not kill a one-hour build, and an unhandled server
+  # error must not reach the page as a stack trace. Both catch broadly on
+  # purpose; every site logs what it swallowed.
+  "BLE001",
+  "PLR2004",  # literal thresholds read better inline than as constants
+  "PLR0912",  # the agent loop is one deliberately linear function
+  "PLR0915",
+  "PLR0911",  # run_tool and chunk_file are flat dispatch tables
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/test_*.py" = ["PLR0915"]
+"server/app.py" = ["E501"]  # the page is one embedded HTML/CSS/JS literal

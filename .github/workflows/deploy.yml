@@ -1,0 +1,77 @@
+name: deploy
+on:
+  workflow_dispatch:
+    inputs:
+      index_run_id:
+        description: "index workflow run to take index.db from (blank = latest successful)"
+        required: false
+  workflow_run:
+    workflows: [index]
+    types: [completed]
+
+permissions:
+  contents: read
+  id-token: write        # OIDC — no long-lived AWS keys anywhere (SECURITY.md)
+
+env:
+  NAME: ask-gen3
+
+jobs:
+  deploy:
+    # arm64 runner so the image is built natively: QEMU emulation makes the
+    # fastembed weight download and ONNX import step take ~10x longer.
+    runs-on: ubuntu-24.04-arm
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      # The index is a build artifact of a separate, slower pipeline (ADR-0005).
+      # Deploys bake in whichever one is current rather than rebuilding it.
+      - name: Fetch index.db
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.index_run_id || github.event.workflow_run.id }}
+        run: |
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID=$(gh run list --workflow index --status success -L 1 --json databaseId -q '.[0].databaseId')
+          fi
+          [ -n "$RUN_ID" ] || { echo "::error::no successful index run — run the index workflow first"; exit 1; }
+          gh run download "$RUN_ID" -n index-db
+          ls -lh index.db
+
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Build and push
+        env:
+          ECR: ${{ steps.ecr.outputs.registry }}/${{ env.NAME }}
+        run: |
+          docker build -t "$ECR:${{ github.sha }}" -t "$ECR:latest" .
+          docker push "$ECR:${{ github.sha }}"
+          docker push "$ECR:latest"
+
+      - name: Update function and wait
+        env:
+          ECR: ${{ steps.ecr.outputs.registry }}/${{ env.NAME }}
+        run: |
+          aws lambda update-function-code --function-name "$NAME" \
+            --image-uri "$ECR:${{ github.sha }}" >/dev/null
+          aws lambda wait function-updated-v2 --function-name "$NAME"
+
+      # A green deploy that cannot answer is worse than a failed one: this hits
+      # the real URL and fails the run if the index did not come up.
+      - name: Smoke test
+        run: |
+          URL=$(aws lambda get-function-url-config --function-name "$NAME" --query FunctionUrl --output text)
+          for i in $(seq 1 5); do
+            BODY=$(curl -fsS --max-time 60 "${URL}healthz") && break || sleep 10
+          done
+          echo "$BODY"
+          echo "$BODY" | grep -q '"ok":true' || { echo "::error::healthz not ok"; exit 1; }
+          echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); assert int(d['chunk_count'])>0, 'empty index'"
+          echo "deployed ${URL}" >> $GITHUB_STEP_SUMMARY
