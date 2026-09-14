@@ -1,0 +1,21 @@
+# Nothing here is copied by the Dockerfile today. This file is the guard for
+# the day someone adds `COPY . .` — the key must never reach a layer.
+.env
+.env.*
+!.env.example
+*.pem
+
+.git/
+.github/
+.venv/
+.cache/
+.ruff_cache/
+.serena/
+.claude/
+__pycache__/
+*.py[oc]
+*.egg-info/
+
+docs/
+deploy/
+*.md
