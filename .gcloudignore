@@ -1,0 +1,21 @@
+# Mirrors .dockerignore. Without this file `gcloud builds submit` falls back to
+# .gitignore, which excludes *.db — and the build needs index.db in the context.
+.env
+.env.*
+!.env.example
+*.pem
+
+.git/
+.github/
+.venv/
+.cache/
+.ruff_cache/
+.serena/
+.claude/
+__pycache__/
+*.py[oc]
+*.egg-info/
+
+docs/
+deploy/
+*.md

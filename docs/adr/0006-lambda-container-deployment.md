@@ -4,6 +4,10 @@ Date: 2026-09-13
 
 ## Status
 
+Superseded by [ADR-0008](0008-cloud-run-deployment.md) on 2026-09-14: the AWS
+account never served the Function URL publicly. The cost reasoning below still
+holds and is reused there.
+
 Accepted. Amends the artifact delivery mechanism of
 [ADR-0005](0005-index-as-a-build-artifact.md); reaffirms
 [ADR-0001](0001-sqlite-as-the-retrieval-layer.md).

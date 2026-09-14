@@ -11,16 +11,15 @@ on:
 
 permissions:
   contents: read
-  id-token: write        # OIDC — no long-lived AWS keys anywhere (SECURITY.md)
+  id-token: write        # OIDC — no service account key anywhere (SECURITY.md)
 
 env:
   NAME: ask-gen3
+  REGION: us-central1
 
 jobs:
   deploy:
-    # arm64 runner so the image is built natively: QEMU emulation makes the
-    # fastembed weight download and ONNX import step take ~10x longer.
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     timeout-minutes: 45
     steps:
@@ -40,38 +39,38 @@ jobs:
           gh run download "$RUN_ID" -n index-db
           ls -lh index.db
 
-      - uses: aws-actions/configure-aws-credentials@v5
+      - uses: google-github-actions/auth@v2
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-      - uses: aws-actions/amazon-ecr-login@v2
-        id: ecr
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
 
+      # Cloud Build rather than a local docker build: Cloud Run is x86-only and
+      # the build is native there. .gcloudignore keeps index.db in the upload,
+      # which .gitignore would otherwise exclude (ADR-0008).
       - name: Build and push
-        env:
-          ECR: ${{ steps.ecr.outputs.registry }}/${{ env.NAME }}
         run: |
-          docker build -t "$ECR:${{ github.sha }}" -t "$ECR:latest" .
-          docker push "$ECR:${{ github.sha }}"
-          docker push "$ECR:latest"
+          gcloud builds submit \
+            --tag "$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app:${{ github.sha }}" \
+            --region "$REGION" --project "${{ vars.GCP_PROJECT }}"
 
-      - name: Update function and wait
-        env:
-          ECR: ${{ steps.ecr.outputs.registry }}/${{ env.NAME }}
+      - name: Deploy
+        id: deploy
         run: |
-          aws lambda update-function-code --function-name "$NAME" \
-            --image-uri "$ECR:${{ github.sha }}" >/dev/null
-          aws lambda wait function-updated-v2 --function-name "$NAME"
+          gcloud run deploy "$NAME" \
+            --image "$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app:${{ github.sha }}" \
+            --region "$REGION" --project "${{ vars.GCP_PROJECT }}"
+          URL=$(gcloud run services describe "$NAME" --region "$REGION" \
+            --project "${{ vars.GCP_PROJECT }}" --format='value(status.url)')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
 
-      # A green deploy that cannot answer is worse than a failed one: this hits
-      # the real URL and fails the run if the index did not come up.
-      - name: Smoke test
+      # /healthz is reserved by Cloud Run's frontend and never reaches the
+      # container; /health is the same handler (ADR-0008).
+      - name: Verify
         run: |
-          URL=$(aws lambda get-function-url-config --function-name "$NAME" --query FunctionUrl --output text)
-          for i in $(seq 1 5); do
-            BODY=$(curl -fsS --max-time 60 "${URL}healthz") && break || sleep 10
+          for i in $(seq 1 6); do
+            BODY=$(curl -fsS --max-time 60 "${{ steps.deploy.outputs.url }}/health") && break || sleep 10
           done
           echo "$BODY"
-          echo "$BODY" | grep -q '"ok":true' || { echo "::error::healthz not ok"; exit 1; }
-          echo "$BODY" | python3 -c "import json,sys; d=json.load(sys.stdin); assert int(d['chunk_count'])>0, 'empty index'"
-          echo "deployed ${URL}" >> $GITHUB_STEP_SUMMARY
+          echo "$BODY" | grep -q '"ok":true' || { echo "::error::health not ok"; exit 1; }
+          echo "$BODY" | grep -qv '"chunk_count":"0"' || { echo "::error::empty index"; exit 1; }

@@ -1,7 +1,7 @@
 name: index
 on:
-  schedule:
-    - cron: "17 3 * * 1"   # Mondays 03:17 UTC
+  # Manual only. The corpus moves slowly and a stale index is not an outage,
+  # so a weekly cron bought nothing and would auto-disable after 60 days idle.
   workflow_dispatch:
 permissions:
   contents: read

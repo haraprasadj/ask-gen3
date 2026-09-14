@@ -1,97 +1,101 @@
 # Deploy to production
 
-Puts ask-gen3 on AWS Lambda behind a public URL. Roughly 20 minutes of setup
+Puts ask-gen3 on Google Cloud Run behind a public URL. About 15 minutes of setup
 once, then deploys are a button. The reasoning behind this shape is
-[ADR-0006](../adr/0006-lambda-container-deployment.md).
+[ADR-0008](../adr/0008-cloud-run-deployment.md).
 
 ## Prerequisites
 
-- An AWS account, and `aws` authenticated: `aws login`
-- Docker, for the first image push
-- `.env` with a working `OPENROUTER_API_KEY`
+- A Google Cloud account with billing enabled. Cloud Run's free tier still
+  requires a billing account attached; it just does not charge within the
+  limits.
+- [gcloud](https://cloud.google.com/sdk/docs/install), authenticated:
+  `gcloud init`
+- An OpenRouter API key
 - A built `index.db` — `just index` for the full corpus, which takes about an
   hour
 
-## 1. Build and push the first image
+Docker is not needed. Cloud Build builds the image.
 
-Bootstrap needs an image to point the function at.
-
-```sh
-just index          # ~1 hour; `just index-dev` for a 2-repo smoke test
-just docker
-aws ecr create-repository --repository-name ask-gen3 >/dev/null
-ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-ECR=$ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/ask-gen3
-aws ecr get-login-password | docker login --username AWS --password-stdin "$ECR"
-docker tag ask-gen3 "$ECR:bootstrap" && docker push "$ECR:bootstrap"
-```
-
-Build the image on the machine that will run it, or with `docker build
---platform linux/arm64` — the function is arm64.
-
-## 2. Bootstrap the AWS resources
+## 1. Create the project and its services
 
 ```sh
-./deploy/bootstrap.sh
+gcloud projects create ask-gen3 --name=ask-gen3
+gcloud billing projects link ask-gen3 --billing-account=<your-billing-account-id>
+gcloud config set project ask-gen3
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com secretmanager.googleapis.com
+gcloud artifacts repositories create ask-gen3 \
+  --repository-format=docker --location=us-central1
 ```
 
-Idempotent, so re-run it freely. It creates the ECR repository with a
-keep-the-last-3 lifecycle rule, the Lambda execution role, the function itself
-(arm64, 2 GB, 120 s timeout), a public Function URL in `RESPONSE_STREAM` mode,
-and the GitHub OIDC role that lets CI deploy without any stored AWS key. It
-reads `OPENROUTER_API_KEY` from `.env` and sets it as an encrypted Lambda
-environment variable without printing it.
+`gcloud billing accounts list` gives the billing account ID.
 
-Override the defaults with environment variables: `REGION`, `NAME`, `MEMORY`,
-and `REPO` — set `REPO` to your own `owner/repo`, or the OIDC trust policy will
-name the wrong repository.
-
-It prints your URL. Check it:
+## 2. Store the API key
 
 ```sh
-curl https://<id>.lambda-url.us-east-1.on.aws/healthz
+grep '^OPENROUTER_API_KEY=' .env | cut -d= -f2- | tr -d '"'"'"' ' | tr -d '\n' |
+  gcloud secrets create openrouter-api-key --data-file=- --replication-policy=automatic
 ```
 
-## 3. Wire up CI deploys
+The `tr -d '\n'` matters. A trailing newline is stored verbatim and comes back
+as a confusing 401 from OpenRouter. If you create the secret in the console
+instead, make sure it has a *version* with a value — an empty secret fails the
+deploy with `Secret ... versions/latest was not found`.
+
+Then let the runtime service account read it:
 
 ```sh
-gh variable set AWS_ROLE_ARN --body arn:aws:iam::<account>:role/ask-gen3-deploy
-gh variable set AWS_REGION --body us-east-1
+NUM=$(gcloud projects describe ask-gen3 --format='value(projectNumber)')
+gcloud secrets add-iam-policy-binding openrouter-api-key \
+  --member="serviceAccount:$NUM-compute@developer.gserviceaccount.com" \
+  --role=roles/secretmanager.secretAccessor
 ```
 
-`.github/workflows/deploy.yml` then runs automatically whenever the weekly
-index build succeeds, and on demand from the Actions tab. It downloads
-`index.db` from the index run, builds the image on a native arm64 runner, pushes
-it, updates the function, and fails the run if `/healthz` does not come back
-with a non-empty index.
+## 3. Build and deploy
+
+```sh
+just deploy
+```
+
+That is `gcloud builds submit` followed by `gcloud run deploy`. The first build
+takes about 5 minutes; most of it is downloading the embedding weights and
+pushing a ~780 MB image.
+
+It prints the service URL. Check it:
+
+```sh
+curl https://<service>-<hash>-uc.a.run.app/health
+```
+
+## 4. Wire up CI deploys
+
+```sh
+gh variable set GCP_PROJECT --body ask-gen3
+gh variable set GCP_WIF_PROVIDER --body <workload-identity-provider-resource-name>
+gh variable set GCP_DEPLOY_SA --body github-deploy@ask-gen3.iam.gserviceaccount.com
+```
+
+`.github/workflows/deploy.yml` then runs automatically whenever the weekly index
+build succeeds, and on demand from the Actions tab. It downloads `index.db` from
+the index run, submits the build to Cloud Build, deploys the new revision, and
+fails the run if `/health` does not come back with a non-empty index.
+Authentication is Workload Identity Federation — no service account key is
+stored in GitHub.
 
 To roll back, redeploy an earlier image:
 
 ```sh
-aws lambda update-function-code --function-name ask-gen3 --image-uri "$ECR:<sha>"
+gcloud run deploy ask-gen3 --region us-central1 \
+  --image us-central1-docker.pkg.dev/ask-gen3/ask-gen3/app:<tag>
 ```
-
-## 4. Put a CDN in front (optional)
-
-The Function URL works as-is, on an ugly hostname, with no caching. For a
-custom domain, know this first: **a plain Cloudflare CNAME to a Function URL
-returns 403.** Lambda validates the `Host` header against its own hostname, and
-Cloudflare forwards yours. The fixes, cheapest first:
-
-- A Cloudflare Transform Rule (or a Worker) that rewrites the `Host` header to
-  the `*.lambda-url.*.on.aws` origin. Free.
-- CloudFront with an origin access control and your ACM certificate. Also
-  handles streaming, costs pennies at this traffic, and is more moving parts.
-
-Whichever you choose, keep `cf-connecting-ip` or `x-forwarded-for` reaching the
-app — `client_ip()` reads them in that order, and per-IP rate limiting silently
-degrades to one global bucket without them.
 
 ## What it costs
 
-Nothing, at hobby traffic. The 400,000 GB-s monthly Lambda free tier covers
-roughly 13,000 answers; ECR storage for three ~1 GB images is about USD 0.11.
-Generation is the only real line item — see
+Nothing, at hobby traffic. Cloud Run's free tier is 180,000 vCPU-seconds,
+360,000 GiB-seconds and 2 million requests per month — roughly 50 CPU-hours.
+Artifact Registry storage for the image is about USD 0.10/month. Generation is
+the only real line item — see
 [ADR-0007](../adr/0007-default-model-gemini-flash-lite.md).
 
 Set a hard spend limit on the OpenRouter key. It is the one ceiling that
@@ -101,8 +105,10 @@ concurrency, a bug, or an abusive client cannot exceed.
 
 | Symptom | Cause |
 |---|---|
-| 403 from a custom domain | `Host` header, see above |
-| Answers arrive all at once, not streamed | Function URL is not in `RESPONSE_STREAM` mode, or a proxy is buffering |
-| `healthz` reports `index unavailable` | `index.db` was not baked into the image |
-| First request takes 5 s | Cold start, expected. A warming EventBridge rule is the fix, not provisioned concurrency — that forfeits the free tier |
-| `Runtime.InvalidEntrypoint` | Image built for amd64; rebuild with `--platform linux/arm64` |
+| `COPY failed: ... index.db: file does not exist` | `gcloud builds submit` falls back to `.gitignore` when there is no `.gitignore`-shadowing `.gcloudignore`, and `.gitignore` excludes `*.db`. Keep `.gcloudignore` in place. Also check the file exists — switching to a branch that does not track it deletes it |
+| `/healthz` returns a Google 404 page | Cloud Run's frontend reserves that path and never forwards it. Use `/health`, which serves the same handler |
+| `Secret ... versions/latest was not found` | The secret exists but has no version. Add one |
+| `toomanyrequests: Rate exceeded` during build | A public registry rate-limiting Cloud Build. Retry |
+| Answers arrive all at once, not streamed | A proxy is buffering. Cloud Run itself does not; the app sets `X-Accel-Buffering: no` |
+| `/health` reports `index unavailable` | `index.db` was not baked into the image |
+| First request takes 5 s | Cold start, expected. `--min-instances 1` fixes it and costs money at idle |

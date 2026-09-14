@@ -56,7 +56,10 @@ def sse(event: str, payload: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(payload)}\n\n"
 
 
+# Cloud Run's frontend swallows /healthz before it reaches the container, so the
+# same check is also served at /health. Lambda and local use either.
 @app.get("/healthz")
+@app.get("/health")
 def healthz() -> dict:
     return {"ok": True, **retrieve.index_info()}
 

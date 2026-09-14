@@ -25,15 +25,15 @@ Constraints, in priority order:
 Two halves that share nothing but a file.
 
 ```
- OFFLINE (GitHub Actions, weekly)          ONLINE (Lambda container, arm64)
+ OFFLINE (GitHub Actions, weekly)          ONLINE (Cloud Run container, x86)
  ┌──────────────────────────────┐          ┌────────────────────────────────┐
- │ clone --depth=1 (repos.yaml) │          │ Function URL, RESPONSE_STREAM  │
+ │ clone --depth=1 (repos.yaml) │          │ public URL, scale to zero      │
  │   ↓ select + chunk           │          │   ↓ FastAPI + SSE              │
  │   ↓ embed (fastembed, ONNX)  │          │ agent loop (tool calling)      │
  │   ↓ write index.db           │          │   ↓ search / grep / open_file  │
- │   ↓ bake into image → ECR    │          │   ↓         ↑                  │
+ │   ↓ bake into image → AR     │          │   ↓         ↑                  │
  └──────────┬───────────────────┘          │ index.db in image (read-only) ─┤
-            │ docker push + deploy         │   ↓                            │
+            │ Cloud Build + deploy         │   ↓                            │
             └──────────────────────────────┤ OpenRouter (generation only)   │
                                            └────────────────────────────────┘
 ```
@@ -41,9 +41,9 @@ Two halves that share nothing but a file.
 The index is a build artifact, not a service. Nothing in the serving path
 talks to a database server, a vector store or an embedding API — see
 [ADR-0001](adr/0001-sqlite-as-the-retrieval-layer.md). That matters more on
-Lambda than it would on a rented box, because Lambda bills wall-clock time:
-every network call in the retrieval path would be paid for twice, once in
-latency and once in GB-seconds.
+a scale-to-zero host than it would on a rented box, because billing follows
+wall-clock time: every network call in the retrieval path would be paid for
+twice, once in latency and once in resource-seconds.
 
 ## Corpus selection
 
@@ -148,8 +148,8 @@ from parametric memory. Tokens stream to the browser over SSE.
 
 | Item | Monthly |
 |---|---|
-| Lambda compute — ~30 GB-s/answer, 400 k GB-s always free | 0 below ~13 k answers, USD 3.33 at 20 k |
-| ECR storage for the ~1.05 GB image | ~USD 0.11 |
+| Cloud Run compute — free tier 180 k vCPU-s + 360 k GiB-s/month | 0 at this traffic (~50 CPU-hours free) |
+| Artifact Registry storage for the ~1.05 GB image | ~USD 0.10 |
 | Index build (GitHub Actions, weekly, free tier) | 0 |
 | Embeddings (local ONNX, both halves) | 0 |
 | Generation — `google/gemini-3.1-flash-lite`, USD 0.0015–0.007/answer by tool-step count ([ADR-0007](adr/0007-default-model-gemini-flash-lite.md)) | USD 10 per 1,400–6,600 answers |
@@ -175,13 +175,13 @@ where the design gets lazy:
 - Cloudflare in front for TLS, caching and bot filtering; Turnstile added only
   if scripted abuse actually shows up. The Function URL is not advertised
   directly, so a traffic spike cannot bypass the cache into billed compute.
-- Question, answer and cost written to CloudWatch Logs for eval mining, with a
+- Question, answer and cost written to Cloud Logging for eval mining, with a
   retention policy. No accounts, no cookies, no PII. The index is read-only, so
   logs cannot go to it.
-- `OPENROUTER_API_KEY` is a KMS-encrypted Lambda environment variable read once
+- `OPENROUTER_API_KEY` comes from Secret Manager, mounted at revision start
   at module load, and a gitignored `.env` locally. It is the only long-lived
-  secret: index builds use the ephemeral `github.token`, and deploys assume a
-  role via OIDC rather than storing access keys. The browser talks only to this
+  secret: index builds use the ephemeral `github.token`, and deploys use Workload Identity
+  Federation rather than a stored service account key. The browser talks only to this
   app, so no model key reaches the rendered page. Full table in
   [SECURITY.md](../SECURITY.md).
 

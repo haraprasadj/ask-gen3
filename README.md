@@ -54,7 +54,7 @@ just                      # list recipes
 just index                # full corpus, about an hour
 just index "--only fence" # one repository
 just check                # lint and every self-check
-just docker               # build the Lambda container image
+just deploy               # build on Cloud Build, deploy a Cloud Run revision
 ```
 
 Configuration is environment variables, all optional except the key:
@@ -82,9 +82,9 @@ embedding API.
 
 - [Architecture](docs/architecture.md) — components, corpus selection, cost,
   abuse controls
-- [Deploying](docs/how-to/deploy.md) — Lambda, ECR and the CI deploy path
+- [Deploying](docs/how-to/deploy.md) — Cloud Run, Cloud Build and the CI deploy path
 - [Decision records](docs/adr/) — why SQLite, why local embeddings, why
-  OpenRouter, why no framework, why Lambda
+  OpenRouter, why no framework, why Cloud Run
 
 ## License
 

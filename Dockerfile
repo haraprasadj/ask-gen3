@@ -1,15 +1,10 @@
-# Runs identically under `docker run` and as a Lambda container image: the AWS
-# Lambda Web Adapter translates Function URL invocations into ordinary HTTP,
-# which is what lets a plain FastAPI app stream responses on Lambda (ADR-0006).
-FROM public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 AS adapter
+# A plain container: uvicorn on $PORT. Runs the same under `docker run` and on
+# Cloud Run, which streams server-sent events without any adapter (ADR-0008).
 FROM python:3.13-slim
 
-COPY --from=adapter /lambda-adapter /opt/extensions/lambda-adapter
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /bin/uv
 
-ENV AWS_LWA_INVOKE_MODE=response_stream \
-    AWS_LWA_PORT=8000 \
-    PORT=8000 \
+ENV PORT=8000 \
     PYTHONUNBUFFERED=1 \
     FASTEMBED_CACHE_PATH=/opt/fastembed \
     INDEX_PATH=/app/index.db \
@@ -43,6 +38,6 @@ COPY server/ ./server/
 COPY index.db ./index.db
 
 EXPOSE 8000
-# Call the venv directly: `uv run` wants a cache dir under $HOME, and Lambda's
-# $HOME is read-only.
+# Call the venv directly: `uv run` wants a writable cache dir under $HOME, which
+# a read-only container filesystem does not provide.
 CMD ["/app/.venv/bin/uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]

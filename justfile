@@ -13,6 +13,7 @@ test:
     uv run python -m ingest.test_chunk
     uv run python -m server.test_retrieve
     uv run python -m server.test_agent
+    uv run evals/check.py
 
 lint:
     uvx ruff check .
@@ -40,12 +41,19 @@ run-prod:
     @test -f .env || (echo "no .env — run 'just setup' then add your key" && exit 1)
     uv run --env-file .env uvicorn server.app:app --port 8000
 
-# Build the Lambda container image. Needs an index.db to bake in.
+# Build the container image locally. Needs an index.db to bake in.
 docker:
     @test -f index.db || (echo "no index.db — run 'just index-dev' first" && exit 1)
     docker build -t ask-gen3 .
 
-# Run that image the way Lambda will, against local Ollama.
+# Build on Cloud Build and roll out a new Cloud Run revision (docs/how-to/deploy.md).
+deploy tag="latest":
+    @test -f index.db || (echo "no index.db — run 'just index' first" && exit 1)
+    gcloud builds submit --tag us-central1-docker.pkg.dev/ask-gen3/ask-gen3/app:{{tag}} --region=us-central1
+    gcloud run deploy ask-gen3 --region us-central1 \
+      --image us-central1-docker.pkg.dev/ask-gen3/ask-gen3/app:{{tag}}
+
+# Run that image the way production does, against local Ollama.
 docker-run:
     docker run --rm -p 8000:8000 \
       -e BASE_URL=http://host.docker.internal:11434/v1 \
