@@ -169,15 +169,21 @@ Index size projection: ~60 k chunks → 90 MB of vectors + ~250 MB text and FTS
 The app spends real money per request and is open to the world, so this is not
 where the design gets lazy:
 
-- Per-IP token bucket (20 questions/hour) and a global daily USD ceiling read
-  from config; past the ceiling the app serves cached answers and a notice.
-- Hard caps on question length, tool calls and total tokens per question.
-- Cloudflare in front for TLS, caching and bot filtering; Turnstile added only
-  if scripted abuse actually shows up. The Function URL is not advertised
-  directly, so a traffic spike cannot bypass the cache into billed compute.
-- Question, answer and cost written to Cloud Logging for eval mining, with a
-  retention policy. No accounts, no cookies, no PII. The index is read-only, so
-  logs cannot go to it.
+- Per-IP bucket (20 questions/hour) and a per-instance daily question cap, both
+  keyed on the address Cloud Run observed — the rightmost `X-Forwarded-For`
+  entry, the only one a caller cannot forge. Both counters live in process
+  memory, so the real ceiling is roughly N instances x the cap; the spend limit
+  on the OpenRouter key is the one ceiling concurrency cannot defeat.
+- Hard caps on question length (600 chars), tool calls (6), prompt tokens
+  (25 k) and wall-clock per answer (120 s, and Cloud Run bills wall-clock).
+- No CDN or bot filtering in front today. If one is added, `client_ip()` must
+  be told which header to trust, or the per-IP limit becomes meaningless.
+- Model output is rendered client-side as markdown into escaped text, under a
+  per-response CSP nonce. Repository content is untrusted input that reaches
+  the model, so this is a security boundary, not formatting (SECURITY.md).
+- No accounts, no cookies, no PII, and no request logging beyond unhandled
+  errors. The index is opened read-only, so nothing written at runtime reaches
+  it.
 - `OPENROUTER_API_KEY` comes from Secret Manager, mounted at revision start
   at module load, and a gitignored `.env` locally. It is the only long-lived
   secret: index builds use the ephemeral `github.token`, and deploys use Workload Identity

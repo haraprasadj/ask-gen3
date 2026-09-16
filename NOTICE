@@ -1,0 +1,21 @@
+ask-gen3
+Copyright 2026 ask-gen3 contributors
+
+This product includes software developed by the ask-gen3 contributors,
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+---
+
+The Gen3 wordmark inlined in server/app.py is taken from
+uc-cdis/data-portal (src/img/icons/gen3.svg), Copyright the University of
+Chicago, licensed under the Apache License, Version 2.0:
+
+    https://github.com/uc-cdis/data-portal
+
+It is used to identify the software this tool indexes. This project is not
+affiliated with, endorsed by, or sponsored by the Gen3 project, the University
+of Chicago, or the Center for Translational Data Science.
+
+The index this project builds contains excerpts of source and documentation
+from the uc-cdis GitHub organisation. Each excerpt remains under the licence of
+the repository it came from, and every answer cites the file and lines it used.

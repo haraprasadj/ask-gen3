@@ -25,9 +25,13 @@ import sqlite3, sqlite_vec; c = sqlite3.connect(':memory:'); \
 c.enable_load_extension(True); sqlite_vec.load(c); \
 print('sqlite-vec', c.execute('select vec_version()').fetchone()[0])"
 
-# Bake the embedding weights in so a cold start never reaches the network.
+# Bake the embedding weights in so a cold start never reaches the network. The
+# download writes some of the cache 0600, which the unprivileged runtime user
+# cannot read; it degrades to a slower path with a warning instead of failing,
+# so make the whole cache world-readable while we are still root.
 RUN uv run --no-sync python -c "\
-from fastembed import TextEmbedding; TextEmbedding(model_name='BAAI/bge-small-en-v1.5')"
+from fastembed import TextEmbedding; TextEmbedding(model_name='BAAI/bge-small-en-v1.5')" \
+ && chmod -R a+rX /opt/fastembed
 
 # Only now forbid Hugging Face network access: everything needed is on disk,
 # and a cold start must never wait on hf.co.
@@ -38,6 +42,10 @@ COPY server/ ./server/
 COPY index.db ./index.db
 
 EXPOSE 8000
+# Nothing in the image is written at runtime — the index is opened read-only and
+# the weights are already on disk — so the process has no reason to be root.
+USER nobody
+
 # Call the venv directly: `uv run` wants a writable cache dir under $HOME, which
 # a read-only container filesystem does not provide.
 CMD ["/app/.venv/bin/uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"]

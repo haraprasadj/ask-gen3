@@ -67,6 +67,7 @@ Configuration is environment variables, all optional except the key:
 | `INDEX_PATH` | `index.db` | where the index lives |
 | `RATE_LIMIT_PER_HOUR` | `20` | per-IP question limit |
 | `DAILY_QUESTION_CAP` | `2000` | per-instance daily ceiling |
+| `REQUEST_TIMEOUT_SECONDS` | `120` | wall-clock ceiling on one answer |
 
 `just setup` creates a gitignored `.env` from `.env.example`; `just run-prod`
 loads it. Set a hard spend limit on the OpenRouter key as well — it is the only
@@ -88,5 +89,10 @@ embedding API.
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE). Indexed content remains under the
-licences of the repositories it came from.
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Indexed
+content remains under the licences of the repositories it came from.
+
+Not affiliated with, endorsed by, or sponsored by the Gen3 project, the
+University of Chicago or the Center for Translational Data Science. "Gen3" and
+the Gen3 logo belong to their owners and are used here only to identify the
+software this tool indexes.

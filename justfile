@@ -1,3 +1,8 @@
+name := "ask-gen3"
+region := env("REGION", "us-central1")
+gcp_project := env("GCP_PROJECT", "ask-gen3")
+image := region + "-docker.pkg.dev/" + gcp_project + "/" + name + "/app"
+
 default:
     @just --list
 
@@ -13,6 +18,7 @@ test:
     uv run python -m ingest.test_chunk
     uv run python -m server.test_retrieve
     uv run python -m server.test_agent
+    uv run python -m server.test_app
     uv run evals/check.py
 
 lint:
@@ -47,11 +53,12 @@ docker:
     docker build -t ask-gen3 .
 
 # Build on Cloud Build and roll out a new Cloud Run revision (docs/how-to/deploy.md).
+# Override the project the way CI does: `just gcp_project=my-project deploy`.
 deploy tag="latest":
     @test -f index.db || (echo "no index.db — run 'just index' first" && exit 1)
-    gcloud builds submit --tag us-central1-docker.pkg.dev/ask-gen3/ask-gen3/app:{{tag}} --region=us-central1
-    gcloud run deploy ask-gen3 --region us-central1 \
-      --image us-central1-docker.pkg.dev/ask-gen3/ask-gen3/app:{{tag}}
+    gcloud builds submit --tag {{image}}:{{tag}} --region={{region}} --project={{gcp_project}}
+    gcloud run deploy {{name}} --region {{region}} --project {{gcp_project}} \
+      --image {{image}}:{{tag}}
 
 # Run that image the way production does, against local Ollama.
 docker-run:

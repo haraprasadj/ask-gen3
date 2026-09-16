@@ -1,13 +1,14 @@
 """HTTP layer: one page, one SSE endpoint.
 
-Plain ASGI so the same image runs under uvicorn locally and behind the AWS
-Lambda Web Adapter in response_stream mode (ADR-0006).
+Plain ASGI: uvicorn serves it locally and Cloud Run runs the same image with no
+adapter, because Cloud Run streams server-sent events natively (ADR-0008).
 """
 
 from __future__ import annotations
 
 import json
 import os
+import secrets
 import time
 
 from fastapi import FastAPI, Request
@@ -17,20 +18,28 @@ from server import agent, retrieve
 
 RATE_LIMIT = int(os.environ.get("RATE_LIMIT_PER_HOUR", "20"))
 DAILY_QUESTION_CAP = int(os.environ.get("DAILY_QUESTION_CAP", "2000"))
+REQUEST_TIMEOUT = int(os.environ.get("REQUEST_TIMEOUT_SECONDS", "120"))
 
 app = FastAPI(title="ask-gen3", docs_url=None, redoc_url=None)
 
-# ponytail: per-instance counters. Lambda may run several environments, so the
+# ponytail: per-instance counters. Cloud Run may run several instances, so the
 # real ceilings are ~N x these. The hard global backstop is the spend limit on
-# the OpenRouter key, which no amount of concurrency can exceed. Move to
-# DynamoDB only if that backstop starts being reached.
+# the OpenRouter key, which no amount of concurrency can exceed. Move to a
+# shared store only if that backstop starts being reached.
 _buckets: dict[str, list[float]] = {}
 _day = {"date": "", "count": 0}
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "")
-    return fwd.split(",")[0].strip() or (request.client.host if request.client else "?")
+    """The IP the proxy observed, never the one the caller claims.
+
+    Cloud Run appends the address it saw to X-Forwarded-For, so the rightmost
+    entry is the only one a client cannot forge. Reading the leftmost entry —
+    or any `cf-connecting-ip`-style header, with no Cloudflare in front of this
+    — hands anyone an unlimited rate limit for a header they set themselves.
+    """
+    fwd = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+    return (fwd[-1] if fwd else "") or (request.client.host if request.client else "") or "?"
 
 
 def allowed(ip: str) -> str | None:
@@ -46,8 +55,12 @@ def allowed(ip: str) -> str | None:
         return f"Rate limit: {RATE_LIMIT} questions per hour. Try again later."
     hits.append(now)
     _buckets[ip] = hits
-    if len(_buckets) > 10_000:  # unbounded dict is the other way to lose a machine
-        _buckets.clear()
+    if len(_buckets) > 10_000:
+        # An unbounded dict is the other way to lose a machine. Drop only the
+        # windows that have expired: clearing all of them would let anyone who
+        # can mint 10k keys reset every real caller's limit too.
+        for key in [k for k, v in _buckets.items() if not v or now - v[-1] >= 3600]:
+            del _buckets[key]
     _day["count"] += 1
     return None
 
@@ -74,6 +87,9 @@ def ask(request: Request, q: str = "") -> StreamingResponse:
         started = time.time()
         try:
             for event in agent.answer(q):
+                if time.time() - started > REQUEST_TIMEOUT:
+                    yield sse("error", {"text": "Took too long. Try a narrower question."})
+                    return
                 if event.kind == "token":
                     yield sse("token", {"text": event.text})
                 elif event.kind == "tool":
@@ -100,8 +116,8 @@ def ask(request: Request, q: str = "") -> StreamingResponse:
     )
 
 
-@app.get("/", response_class=HTMLResponse)
-def home() -> str:
+@app.get("/")
+def home() -> HTMLResponse:
     try:
         info = retrieve.index_info()
         built = info.get("built_at", "?")[:10]
@@ -110,7 +126,21 @@ def home() -> str:
         footer = f"{chunks} chunks from {repos} uc-cdis repositories, indexed {built}"
     except Exception:
         footer = "index unavailable"
-    return PAGE.replace("{{logo}}", LOGO).replace("{{footer}}", footer)
+    # Second layer under the escaping in render(): even a renderer bug cannot
+    # run injected script without this nonce, which changes every response.
+    nonce = secrets.token_urlsafe(16)
+    page = PAGE.replace("{{logo}}", LOGO).replace("{{footer}}", footer).replace("{{nonce}}", nonce)
+    return HTMLResponse(
+        page,
+        headers={
+            "Content-Security-Policy": (
+                f"default-src 'none'; script-src 'nonce-{nonce}'; style-src 'nonce-{nonce}'; "
+                "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+            ),
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+        },
+    )
 
 
 # The Gen3 wordmark, from uc-cdis/data-portal src/img/icons/gen3.svg (Apache-2.0).
@@ -131,7 +161,7 @@ PAGE = r"""<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ask gen3 — questions about the Gen3 platform, answered from source</title>
 <meta name="description" content="Ask questions about the Gen3 platform and get answers cited to the uc-cdis source.">
-<style>
+<style nonce="{{nonce}}">
   :root { color-scheme: light dark;
           --fg: #10141b; --bg: #fbfbfa; --panel: #fff; --dim: #667085;
           --line: #e4e4e0; --accent: #1a56b8; --brand: #3283c8; --code: #f4f4f1;
@@ -235,7 +265,7 @@ with citations to the exact lines.</p>
 A community project. Not affiliated with or endorsed by the Gen3 team or the
 Center for Translational Data Science; the Gen3 logo is used to identify the
 software this tool indexes.</footer>
-<script>
+<script nonce="{{nonce}}">
 const f = document.getElementById('f'), q = document.getElementById('q');
 const out = document.getElementById('out'), act = document.getElementById('activity');
 const go = document.getElementById('go');
@@ -244,7 +274,11 @@ let es = null;
 document.querySelectorAll('.examples button').forEach(b =>
   b.onclick = () => { q.value = b.textContent; f.requestSubmit(); });
 
-const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+// Quotes included: inline() puts this text inside href="...", and a browser
+// treats href="x"onclick="y" as two attributes, so an unescaped quote is script
+// execution. Indexed repository content reaches here through the model.
+const esc = s => s.replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const CITE = /\[([\w.-]+\/[\w.-]+)\/([^\]\s]+?)#L(\d+)-L(\d+)\]/g;
 

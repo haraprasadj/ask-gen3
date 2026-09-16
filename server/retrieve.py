@@ -1,7 +1,7 @@
 """The four agent tools, all backed by index.db and nothing else.
 
-No network calls live here. On Lambda that is not just tidiness: wall-clock is
-billed, so a round trip in the retrieval path is paid for twice (ADR-0006).
+No network calls live here. That is not just tidiness: Cloud Run bills
+wall-clock, so a round trip in the retrieval path is paid for twice (ADR-0008).
 """
 
 from __future__ import annotations

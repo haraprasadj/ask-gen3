@@ -1,0 +1,10 @@
+# Actions are pinned to commit SHAs (a tag can be moved onto other code), so
+# something has to move them forward. This is that something.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+  - package-ecosystem: uv
+    directory: /
+    schedule: { interval: monthly }
