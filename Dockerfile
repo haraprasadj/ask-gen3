@@ -1,8 +1,12 @@
 # A plain container: uvicorn on $PORT. Runs the same under `docker run` and on
 # Cloud Run, which streams server-sent events without any adapter (ADR-0008).
-FROM python:3.13-slim
+#
+# Both images are pinned by digest, not tag, for the same reason the workflows
+# pin actions by commit SHA: a tag can be moved onto other code. Dependabot's
+# docker ecosystem moves these forward.
+FROM python:3.13-slim@sha256:9d2e5553305c7c7b0097999bb17187c69b921ccd6bc9d40e4bb5ebe652c00285
 
-COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.9.7@sha256:ba4857bf2a068e9bc0e64eed8563b065908a4cd6bfb66b531a9c424c8e25e142 /uv /bin/uv
 
 ENV PORT=8000 \
     PYTHONUNBUFFERED=1 \

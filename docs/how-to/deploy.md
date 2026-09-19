@@ -62,6 +62,13 @@ That is `gcloud builds submit` followed by `gcloud run deploy`. The first build
 takes about 5 minutes; most of it is downloading the embedding weights and
 pushing a ~780 MB image.
 
+Every setting the service runs with is on that one command — the secret mount,
+`--allow-unauthenticated`, and the scaling caps — so the recipe and the CI
+workflow produce the same service and neither inherits console state. The cap
+that matters is `--max-instances 2`: the rate limits in `server/app.py` are
+per-instance counters, so the real ceiling is instances × limit, and this is
+what stops an abusive client from billing you for a hundred of them.
+
 It prints the service URL. Check it:
 
 ```sh
@@ -78,10 +85,25 @@ gh variable set GCP_DEPLOY_SA --body github-deploy@ask-gen3.iam.gserviceaccount.
 
 `.github/workflows/deploy.yml` then runs automatically whenever the weekly index
 build succeeds, and on demand from the Actions tab. It downloads `index.db` from
-the index run, submits the build to Cloud Build, deploys the new revision, and
-fails the run if `/health` does not come back with a non-empty index.
-Authentication is Workload Identity Federation — no service account key is
-stored in GitHub.
+the index run, submits the build to Cloud Build, scans the image and stops on a
+fixable HIGH or CRITICAL CVE, attaches an SBOM and a provenance attestation,
+deploys the new revision by digest, and fails the run if `/health` does not come
+back with a non-empty index. Authentication is Workload Identity Federation — no
+service account key is stored in GitHub.
+
+If the secret is named something other than `openrouter-api-key`:
+
+```sh
+gh variable set OPENROUTER_SECRET_NAME --body <name>
+```
+
+Verify what a deploy published:
+
+```sh
+gh attestation verify \
+  oci://us-central1-docker.pkg.dev/ask-gen3/ask-gen3/app:<sha> \
+  --repo haraprasadj/ask-gen3
+```
 
 To roll back, redeploy an earlier image:
 

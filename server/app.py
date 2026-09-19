@@ -139,6 +139,8 @@ def home() -> HTMLResponse:
             ),
             "X-Content-Type-Options": "nosniff",
             "Referrer-Policy": "no-referrer",
+            # Cloud Run terminates TLS but does not send this for you.
+            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
         },
     )
 
@@ -262,6 +264,8 @@ with citations to the exact lines.</p>
 <div id="out"></div>
 <footer>{{footer}} &middot; answers can be wrong &mdash; follow the citations
 &middot; <a href="https://github.com/uc-cdis">uc-cdis</a><br>
+Your question is sent to <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>
+and the model it routes to. Don't put anything confidential in it.<br>
 A community project. Not affiliated with or endorsed by the Gen3 team or the
 Center for Translational Data Science; the Gen3 logo is used to identify the
 software this tool indexes.</footer>

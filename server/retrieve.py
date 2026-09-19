@@ -205,6 +205,10 @@ def grep(
     except sqlite3.OperationalError:
         return []
     hits = _load(ids)
+    # ponytail: unindexed full scan on every FTS miss, ~200 ms at this corpus
+    # size. MAX_STEPS in the agent caps it at six per question, so the
+    # amplification is bounded; add a trigram index if the corpus grows or the
+    # miss rate does.
     if not hits:  # substring, not a token — brute force, ~200 ms at this size
         sql = "select id from chunks where text like ?"
         params = [f"%{pattern}%"]

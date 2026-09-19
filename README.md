@@ -74,6 +74,10 @@ loads it. Set a hard spend limit on the OpenRouter key as well — it is the onl
 budget ceiling that concurrency cannot exceed. See [SECURITY.md](SECURITY.md)
 for where every credential lives.
 
+Questions are sent to OpenRouter and the model it routes to, which are third
+parties. Nothing is stored: no question, no answer, no analytics, no cookie.
+[SECURITY.md](SECURITY.md) has the full list of what leaves and what is kept.
+
 ## How it works
 
 Two halves that share only a file. A weekly GitHub Actions job clones the

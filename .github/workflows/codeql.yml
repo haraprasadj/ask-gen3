@@ -1,0 +1,32 @@
+# Static analysis. Advanced setup rather than GitHub's default setup, so the
+# configuration is reviewed as a PR like everything else here.
+#
+# Python only: the page's JavaScript lives inside a string literal in
+# server/app.py, which no JS extractor can see. What guards that code is
+# server/test_app.py, which runs an injection payload through the real
+# renderer under node.
+name: codeql
+on:
+  push: { branches: [main] }
+  pull_request:
+  schedule:
+    # A CVE in a code pattern lands without anyone pushing, so this also runs
+    # on a clock. Monday morning, offset off the hour.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        with:
+          languages: python
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0

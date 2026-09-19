@@ -1,0 +1,3 @@
+# One maintainer. This exists so the review requirement is automatic rather
+# than remembered, and so it keeps working if that ever stops being true.
+*       @haraprasadj

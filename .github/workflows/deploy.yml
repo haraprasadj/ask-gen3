@@ -12,6 +12,7 @@ on:
 permissions:
   contents: read
   id-token: write        # OIDC — no service account key anywhere (SECURITY.md)
+  attestations: write    # build provenance for the pushed image
 
 env:
   NAME: ask-gen3
@@ -49,17 +50,62 @@ jobs:
       # the build is native there. .gcloudignore keeps index.db in the upload,
       # which .gitignore would otherwise exclude (ADR-0008).
       - name: Build and push
+        id: build
         run: |
-          gcloud builds submit \
-            --tag "$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app:${{ github.sha }}" \
+          IMAGE="$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app:${{ github.sha }}"
+          gcloud builds submit --tag "$IMAGE" \
             --region "$REGION" --project "${{ vars.GCP_PROJECT }}"
+          # A tag is what we pushed; a digest is what actually runs. Everything
+          # downstream — scan, SBOM, attestation — names the digest.
+          DIGEST=$(gcloud artifacts docker images describe "$IMAGE" \
+            --project "${{ vars.GCP_PROJECT }}" --format='value(image_summary.digest)')
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "repo_path=$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app" >> "$GITHUB_OUTPUT"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
 
+      # Between the image being built and it serving traffic is the only place
+      # a CVE gate can still stop a release. Dependabot catches the same things
+      # a month later; this catches them now, and covers the base image too.
+      - name: Scan image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.build.outputs.repo_path }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true   # an unfixable CVE is not a reason to stop deploying
+          exit-code: "1"
+
+      # This project's whole claim is answers you can check against source. An
+      # artifact nobody can trace back to a commit is an odd thing to ship with
+      # that claim, so: an SBOM of what is in the image, and an attestation
+      # binding the digest to this workflow run.
+      - uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          image: ${{ steps.build.outputs.repo_path }}@${{ steps.build.outputs.digest }}
+          artifact-name: sbom.spdx.json
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.build.outputs.repo_path }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      # Every setting the service runs with is on this command, not in console
+      # state a redeploy would silently inherit.
+      #
+      # max-instances is a security control, not a performance one: the rate
+      # limits in server/app.py are per-instance counters, so the real ceiling
+      # is instances x limit. Two instances keeps that arithmetic honest and
+      # bounds what an attacker can bill. The OpenRouter spend cap bounds model
+      # spend; nothing else bounds Cloud Run spend.
       - name: Deploy
         id: deploy
         run: |
           gcloud run deploy "$NAME" \
-            --image "$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app:${{ github.sha }}" \
-            --region "$REGION" --project "${{ vars.GCP_PROJECT }}"
+            --image "${{ steps.build.outputs.repo_path }}@${{ steps.build.outputs.digest }}" \
+            --region "$REGION" --project "${{ vars.GCP_PROJECT }}" \
+            --allow-unauthenticated --ingress all \
+            --max-instances 2 --concurrency 20 --cpu 1 --memory 2Gi --timeout 300 \
+            --set-secrets "OPENROUTER_API_KEY=${{ vars.OPENROUTER_SECRET_NAME || 'openrouter-api-key' }}:latest"
           URL=$(gcloud run services describe "$NAME" --region "$REGION" \
             --project "${{ vars.GCP_PROJECT }}" --format='value(status.url)')
           echo "url=$URL" >> "$GITHUB_OUTPUT"

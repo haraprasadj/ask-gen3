@@ -31,6 +31,49 @@ cold start.
 Rotating the key means adding a new secret version and redeploying; the revision
 pins `:latest` at start, so a running revision keeps the value it booted with.
 
+## What leaves this system, and what is kept
+
+Your question is sent to OpenRouter, which routes it to the model named by
+`MODEL` — a third party, under their terms, not ours. The page says so in the
+footer. Don't put anything confidential in a question.
+
+What this application keeps:
+
+| | |
+|---|---|
+| Questions | not stored. They exist for the life of one request |
+| Answers | not stored. The page holds the only copy |
+| Rate-limit state | client IP and request timestamps, in memory, for one hour, in one instance. Lost on every restart |
+| Logs | Cloud Run request logs (IP, path, status, timing) and the exception *type* of anything that broke, at Google's default retention. Question text is never logged |
+
+There is no database of usage, no analytics, and no cookie.
+
+## Supply chain
+
+| Control | Where |
+|---|---|
+| Dependency CVEs | `pip-audit` over `uv.lock`, on every PR (`ci.yml`) |
+| Secret scanning | `gitleaks` over full history, on every PR (`ci.yml`) |
+| Static analysis | CodeQL, on every PR and weekly (`codeql.yml`) |
+| Container CVEs | Trivy on the built image, gating the deploy on HIGH/CRITICAL (`deploy.yml`) |
+| Base images | pinned by digest, not tag (`Dockerfile`) |
+| Actions | pinned by commit SHA, not tag |
+| Updates | Dependabot, monthly, for uv, Actions and Docker |
+| Provenance | SLSA attestation binding the image digest to the workflow run, pushed to the registry |
+| SBOM | SPDX, generated from the image and attached to the run |
+
+Verify a published image before trusting it:
+
+```
+gh attestation verify oci://REGION-docker.pkg.dev/PROJECT/ask-gen3/app:TAG \
+  --repo haraprasadj/ask-gen3
+```
+
+`gitleaks` rather than `detect-secrets`: no baseline file to regenerate and
+re-review on every false positive, history scanning without a separate pass, and
+it runs here as the upstream container pinned by digest, so no marketplace
+action joins the supply chain it is meant to be checking.
+
 ## Practices
 
 - Set a hard spend limit on the OpenRouter key. Application-level rate limits

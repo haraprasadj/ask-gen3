@@ -29,6 +29,16 @@ fmt:
 
 check: lint test
 
+# Dependency CVEs and a secret scan of the history, as CI runs them. Needs docker.
+audit:
+    # Audits the synced environment rather than an exported requirements file:
+    # same packages, and pip-audit's -r mode builds a throwaway venv to resolve
+    # one, which is slow and fails on some Python builds.
+    uv run --with pip-audit pip-audit --strict
+    docker run --rm -v "$PWD:/repo" \
+      ghcr.io/gitleaks/gitleaks:v8.28.0@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854 \
+      detect --source=/repo --redact --verbose
+
 # Build the full index (~1 hour). Override with `just index "--only fence,indexd"`.
 index args="":
     uv run python -m ingest.build --out index.db {{args}}
@@ -58,7 +68,10 @@ deploy tag="latest":
     @test -f index.db || (echo "no index.db — run 'just index' first" && exit 1)
     gcloud builds submit --tag {{image}}:{{tag}} --region={{region}} --project={{gcp_project}}
     gcloud run deploy {{name}} --region {{region}} --project {{gcp_project}} \
-      --image {{image}}:{{tag}}
+      --image {{image}}:{{tag}} \
+      --allow-unauthenticated --ingress all \
+      --max-instances 2 --concurrency 20 --cpu 1 --memory 2Gi --timeout 300 \
+      --set-secrets OPENROUTER_API_KEY=openrouter-api-key:latest
 
 # Run that image the way production does, against local Ollama.
 docker-run:

@@ -27,7 +27,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and `Referrer-Policy` on the page.
 - `REQUEST_TIMEOUT_SECONDS` (default 120) bounding one answer.
 - `NOTICE` covering the Gen3 wordmark and the licences of indexed content.
-- Dependabot for GitHub Actions and uv dependencies.
+- Dependabot for GitHub Actions, uv dependencies and Docker base images.
+- `audit` CI job and `just audit`: `pip-audit` over the locked dependency set
+  and `gitleaks` over the full history, on every pull request.
+- CodeQL static analysis on every pull request and weekly.
+- Trivy scan of the built image, gating the deploy on fixable HIGH and CRITICAL
+  findings.
+- SPDX SBOM and a SLSA provenance attestation for each deployed image, pushed
+  to the registry and verifiable with `gh attestation verify`.
+- `Strict-Transport-Security` on the page; Cloud Run does not send it.
+- Footer and README disclosure that questions are sent to OpenRouter, and a
+  `SECURITY.md` section stating what is kept and for how long.
+- Code of Conduct (Contributor Covenant 2.1), `CODEOWNERS`, and issue and pull
+  request templates.
 
 ### Fixed
 
@@ -45,7 +57,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - The container runs as `nobody` rather than root.
-- GitHub Actions are pinned to commit SHAs instead of floating tags.
+- GitHub Actions are pinned to commit SHAs instead of floating tags, and base
+  images to digests for the same reason.
+- **Security:** Cloud Run deploys now set `--max-instances 2` and the rest of
+  the service configuration explicitly. The rate limits in `server/app.py` are
+  per-instance, so the previous default of 100 instances made the real ceiling
+  100× the intended one, with nothing but the OpenRouter spend cap below it.
+- Deploys pin the image by digest and carry the secret mount and ingress
+  settings on the command, so no part of the running configuration lives only
+  in console state.
 - `just deploy` takes the GCP project, region and name as overridable
   variables instead of hardcoding one project.
 - Abuse-control documentation now describes the controls that exist, rather

@@ -8,3 +8,7 @@ updates:
   - package-ecosystem: uv
     directory: /
     schedule: { interval: monthly }
+  # Base images are pinned by digest too, and a digest never updates itself.
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: monthly }

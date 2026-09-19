@@ -23,3 +23,29 @@ jobs:
       - run: uv run python -m server.test_agent
       # Runners ship node, which the renderer escaping check needs.
       - run: uv run python -m server.test_app
+
+  # Lint is not a security check. These two are, and they run on every PR
+  # rather than waiting for Dependabot's monthly pass.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0   # gitleaks scans history, not just the working tree
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+
+      # Known CVEs in the locked dependency set. `--locked` first, so the
+      # environment audited is exactly uv.lock and nothing resolved fresh.
+      - name: Dependency audit
+        run: |
+          uv sync --locked
+          uv run --with pip-audit pip-audit --strict
+
+      # The upstream image rather than a marketplace action: no license key for
+      # organisations, no third-party action in the supply chain, digest-pinned
+      # like everything else here.
+      - name: Secret scan
+        run: |
+          docker run --rm -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.28.0@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854 \
+            detect --source=/repo --redact --verbose
