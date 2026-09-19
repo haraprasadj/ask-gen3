@@ -5,14 +5,26 @@
 # server/app.py, which no JS extractor can see. What guards that code is
 # server/test_app.py, which runs an injection payload through the real
 # renderer under node.
+#
+# TODO: dormant. Code scanning is not enabled on this repository, so uploading
+# results fails and every run goes red. The automatic triggers are removed
+# until that is sorted; restore them in the same commit that enables it:
+#
+#   push: { branches: [main] }
+#   pull_request:
+#   schedule:
+#     # A CVE in a code pattern lands without anyone pushing, so this also
+#     # runs on a clock. Monday morning, offset off the hour.
+#     - cron: "17 6 * * 1"
+#
+# Enabling means Settings -> Advanced Security -> Code scanning, choosing the
+# advanced/workflow setup rather than default so this file stays in charge.
+# On a private repo that is a paid add-on; making the repo public is free.
 name: codeql
 on:
-  push: { branches: [main] }
-  pull_request:
-  schedule:
-    # A CVE in a code pattern lands without anyone pushing, so this also runs
-    # on a clock. Monday morning, offset off the hour.
-    - cron: "17 6 * * 1"
+  # Manual only. `on:` cannot be empty, and an empty one marks the whole
+  # workflow invalid, which is the same red mark this is avoiding.
+  workflow_dispatch:
 
 permissions:
   contents: read
