@@ -23,6 +23,9 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      # codeql-action reads the workflow run it is part of; without this the
+      # API call 403s and the job fails before analysis.
+      actions: read
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
