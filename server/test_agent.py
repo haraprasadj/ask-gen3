@@ -13,6 +13,10 @@ from types import SimpleNamespace as NS
 
 from server import agent
 
+# Tests below replace agent.run_tool and do not put it back, so a test that
+# wants the real dispatch has to hold on to it here.
+REAL_RUN_TOOL = agent.run_tool
+
 
 def delta(content=None, tool_calls=None, usage=None):
     return NS(choices=[NS(delta=NS(content=content, tool_calls=tool_calls or []))], usage=usage)
@@ -118,6 +122,27 @@ def test_billed_tokens_are_summed_across_calls() -> None:
     usage = list(agent.answer("q", client))[-1].data["usage"]
     assert usage["prompt_tokens"] == 4_000, usage
     assert usage["completion_tokens"] == 60, usage
+
+
+def test_fetch_url_is_dispatched_and_the_url_is_bounded() -> None:
+    """web.py is tested on its own; what is untested is that the agent actually
+    routes to it, and that a model-supplied URL is bounded before it gets
+    there."""
+    seen = {}
+    original = agent.web.fetch
+    def fake_fetch(url, client=None):
+        seen["url"] = url
+        return "page text"
+
+    agent.web.fetch = fake_fetch
+    try:
+        result, hits = REAL_RUN_TOOL("fetch_url", {"url": "https://gen3.org/" + "a" * 5_000})
+    finally:
+        agent.web.fetch = original
+
+    assert result == "page text" and hits == []
+    assert len(seen["url"]) == 2_000, len(seen["url"])
+    assert seen["url"].startswith("https://gen3.org/")
 
 
 def test_malformed_arguments_do_not_crash() -> None:

@@ -139,7 +139,8 @@ Hand-rolled tool calling against OpenRouter's OpenAI-compatible endpoint
 | `list_repos(filter)` | orient when the question names no repo |
 | `fetch_url(url)` | read a page the index does not hold, from an allowlisted host over https — the one tool that leaves the process ([ADR-0009](adr/0009-built-in-fetch-tool-over-mcp.md)) |
 
-The loop runs to one ceiling: 180 k tokens billed across the whole question,
+The loop runs to one ceiling ([ADR-0010](adr/0010-a-cost-ceiling-per-question-not-a-step-count.md)):
+180 k tokens billed across the whole question,
 summed over every call, which is roughly USD 0.05 at flash-lite rates. There is
 no step count — a cheap question gets as many rounds as it needs, and what a
 round costs is what limits them. When the budget will not fit another round the

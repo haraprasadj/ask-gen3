@@ -14,7 +14,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   an index builder producing `index.db` with hybrid BM25 and vector retrieval.
 - Server: streaming agent loop over four retrieval tools, SSE endpoint and a
   single-page UI with per-IP rate limiting and a daily cap.
-- Cost ceiling: a question stops at 180 k billed tokens (~USD 0.05 at
+- Cost ceiling ([ADR-0010](docs/adr/0010-a-cost-ceiling-per-question-not-a-step-count.md)): a question stops at 180 k billed tokens (~USD 0.05 at
   flash-lite rates) counted across every call, replacing the 6-step and 25 k
   prompt limits. `usage.prompt_tokens` now reports the billed sum rather than
   the last call's prompt. Tool results are capped in tokens
