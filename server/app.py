@@ -77,8 +77,39 @@ def healthz() -> dict:
     return {"ok": True, **retrieve.index_info()}
 
 
-@app.get("/ask")
-def ask(request: Request, q: str = "") -> StreamingResponse:
+# Not the context policy — agent.history_messages decides what the model sees.
+# This is the ceiling on what a caller can make this process parse at all.
+MAX_HISTORY_MESSAGES = 100
+
+
+def parse_history(raw: object) -> list[dict]:
+    """The body is caller-controlled: take only well-formed user and assistant
+    text. A forged `system` turn is dropped here rather than handed to the model.
+    """
+    if not isinstance(raw, list):
+        return []
+    return [
+        {"role": m["role"], "content": m["content"]}
+        for m in raw[-MAX_HISTORY_MESSAGES:]
+        if isinstance(m, dict)
+        and m.get("role") in ("user", "assistant")
+        and isinstance(m.get("content"), str)
+    ]
+
+
+# POST, not GET: a conversation's history does not fit in a URL, which is also
+# why the page uses fetch rather than EventSource.
+@app.post("/ask")
+async def ask(request: Request) -> StreamingResponse:
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    q = body.get("q") if isinstance(body.get("q"), str) else ""
+    history = parse_history(body.get("history"))
+
     def stream():
         refusal = allowed(client_ip(request))
         if refusal:
@@ -86,7 +117,7 @@ def ask(request: Request, q: str = "") -> StreamingResponse:
             return
         started = time.time()
         try:
-            for event in agent.answer(q):
+            for event in agent.answer(q, history=history):
                 if time.time() - started > REQUEST_TIMEOUT:
                     yield sse("error", {"text": "Took too long. Try a narrower question."})
                     return
@@ -184,6 +215,8 @@ PAGE = r"""<!doctype html>
   h1 { font-size: 1.05rem; font-weight: 600; margin: 0; letter-spacing: .02em;
        text-transform: lowercase; color: var(--dim); }
   p.sub { color: var(--dim); margin: 0 0 1.75rem; font-size: .95rem; max-width: 34rem; }
+  .composer { position: sticky; bottom: 0; background: var(--bg); padding: .9rem 0 1rem;
+              margin-top: 2rem; }
   form { display: flex; gap: .5rem; background: var(--panel); padding: .45rem;
          border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
   form:focus-within { border-color: var(--brand); }
@@ -197,7 +230,7 @@ PAGE = r"""<!doctype html>
   button[disabled] { opacity: .5; cursor: default; }
   button.stop { background: none; color: var(--dim); border-color: var(--line); }
   button.stop:hover { color: #b42318; border-color: #b42318; opacity: 1; }
-  .examples { margin: 1rem 0 0; padding: 0; list-style: none; display: flex;
+  .examples { margin: .75rem 0 0; padding: 0; list-style: none; display: flex;
               flex-wrap: wrap; gap: .45rem; }
   .examples button { background: none; color: var(--dim); border: 1px solid var(--line);
                      font-size: .85rem; font-weight: 400; padding: .35rem .7rem;
@@ -211,6 +244,13 @@ PAGE = r"""<!doctype html>
   @keyframes dots { 0% { content: " ."; } 33% { content: " .."; } 66% { content: " ..."; } }
   #out { margin-top: 1.75rem; word-wrap: break-word; }
   #out > :first-child { margin-top: 0; }
+  .turn + .turn { margin-top: 2rem; padding-top: 1.75rem; border-top: 1px solid var(--line); }
+  .ask { margin: 0 0 1rem; font-weight: 550; }
+  .ask::before { content: "> "; color: var(--dim); }
+  #new[hidden], .examples[hidden] { display: none; }
+  #new { margin-top: .75rem; background: none; color: var(--dim); border: 1px solid var(--line);
+         font-size: .85rem; font-weight: 400; padding: .35rem .7rem; border-radius: 999px; }
+  #new:hover { color: var(--fg); border-color: var(--dim); opacity: 1; }
   #out p { margin: 0 0 1rem; }
   #out h2 { font-size: 1.1rem; margin: 1.8rem 0 .6rem; }
   #out h3, #out h4 { font-size: .98rem; margin: 1.4rem 0 .5rem; }
@@ -250,18 +290,21 @@ PAGE = r"""<!doctype html>
 </header>
 <p class="sub">Questions about the Gen3 platform, answered from the uc-cdis source
 with citations to the exact lines.</p>
-<form id="f">
-  <input id="q" name="q" placeholder="How does fence issue a refresh token?"
-         autocomplete="off" maxlength="600" autofocus>
-  <button id="go">Ask</button>
-</form>
-<ul class="examples">
-  <li><button type="button">What is indexd and what does it store?</button></li>
-  <li><button type="button">How do presigned URLs get authorized?</button></li>
-  <li><button type="button">What does a Gen3 data dictionary node look like?</button></li>
-</ul>
-<div id="activity"></div>
 <div id="out"></div>
+<div id="activity"></div>
+<div class="composer">
+  <form id="f">
+    <input id="q" name="q" placeholder="How does fence issue a refresh token?"
+           autocomplete="off" maxlength="600" autofocus>
+    <button id="go">Ask</button>
+  </form>
+  <ul class="examples" id="examples">
+    <li><button type="button">What is indexd and what does it store?</button></li>
+    <li><button type="button">How do presigned URLs get authorized?</button></li>
+    <li><button type="button">What does a Gen3 data dictionary node look like?</button></li>
+  </ul>
+  <button type="button" id="new" hidden>New conversation</button>
+</div>
 <footer>{{footer}} &middot; answers can be wrong &mdash; follow the citations
 &middot; <a href="https://github.com/uc-cdis">uc-cdis</a><br>
 Your question is sent to <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>
@@ -272,8 +315,8 @@ software this tool indexes.</footer>
 <script nonce="{{nonce}}">
 const f = document.getElementById('f'), q = document.getElementById('q');
 const out = document.getElementById('out'), act = document.getElementById('activity');
-const go = document.getElementById('go');
-let es = null;
+const go = document.getElementById('go'), newBtn = document.getElementById('new');
+const examples = document.getElementById('examples');
 
 document.querySelectorAll('.examples button').forEach(b =>
   b.onclick = () => { q.value = b.textContent; f.requestSubmit(); });
@@ -357,34 +400,83 @@ function render(text) {
 }
 
 let streaming = false;
+let history = [];   // prior turns, text only — the server keeps nothing
+let current = null; // the answer element being streamed into
+let controller = null;
 
 function reset() {
   streaming = false;
   go.textContent = 'Ask'; go.classList.remove('stop');
   act.querySelectorAll('.live').forEach(e => e.classList.remove('live'));
+  newBtn.hidden = history.length === 0;
+  examples.hidden = history.length > 0 || out.children.length > 0;
+}
+
+function note(text, cls) {
+  const el = document.createElement('p');
+  el.className = cls; el.textContent = text;
+  (current || out).appendChild(el);
 }
 
 function stop() {
   if (!streaming) return;
-  if (es) es.close();
-  const note = document.createElement('div');
-  note.className = 'meta'; note.textContent = 'Stopped.';
-  out.appendChild(note);
+  controller.abort();
+  note('Stopped.', 'meta');
   reset();
 }
+
+newBtn.onclick = () => {
+  if (streaming) stop();
+  history = []; out.innerHTML = ''; act.innerHTML = '';
+  newBtn.hidden = true; examples.hidden = false; q.focus();
+};
 
 // The button doubles as the stop control, so preventDefault here is what keeps
 // the click from submitting the form it lives in.
 go.onclick = e => { if (streaming) { e.preventDefault(); stop(); } };
 addEventListener('keydown', e => { if (e.key === 'Escape') stop(); });
 
-f.onsubmit = e => {
+// EventSource cannot POST, and the history does not fit in a URL, so the SSE
+// frames are parsed by hand: split on the blank line, read event: and data:.
+async function readStream(body, onEvent) {
+  const res = await fetch('/ask', {
+    method: 'POST', headers: {'content-type': 'application/json'},
+    body: JSON.stringify(body), signal: controller.signal,
+  });
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '', cut;
+  for (;;) {
+    const {value, done} = await reader.read();
+    if (done) break;
+    buffer += value;
+    while ((cut = buffer.indexOf('\n\n')) >= 0) {
+      const frame = buffer.slice(0, cut);
+      buffer = buffer.slice(cut + 2);
+      const kind = /^event: (.*)$/m.exec(frame), data = /^data: (.*)$/m.exec(frame);
+      if (kind && data) onEvent(kind[1], JSON.parse(data[1]));
+    }
+  }
+}
+
+f.onsubmit = async e => {
   e.preventDefault();
-  if (es) es.close();
   const question = q.value.trim();
-  if (!question) return;
-  out.innerHTML = ''; act.innerHTML = '';
+  if (!question || streaming) return;
+  q.value = ''; act.innerHTML = '';
+
+  const turn = document.createElement('section');
+  turn.className = 'turn';
+  const asked = document.createElement('p');
+  asked.className = 'ask'; asked.textContent = question;
+  const answer = document.createElement('div');
+  turn.append(asked, answer);
+  out.appendChild(turn);
+  current = answer;
+  examples.hidden = true;
+  asked.scrollIntoView({block: 'start', behavior: 'smooth'});
+
   streaming = true; go.textContent = 'Stop'; go.classList.add('stop');
+  controller = new AbortController();
   let buffer = '';
   const step = text => {
     act.querySelectorAll('.live').forEach(e => e.classList.remove('live'));
@@ -393,29 +485,31 @@ f.onsubmit = e => {
     act.appendChild(line);
   };
   step('searching the index');
-  es = new EventSource('/ask?q=' + encodeURIComponent(question));
 
-  es.addEventListener('tool', ev => {
-    const d = JSON.parse(ev.data);
-    const arg = d.args.query || d.args.pattern || d.args.path || d.args.filter || '';
-    step(`${d.name}(${arg})`);
-  });
-  es.addEventListener('token', ev => { buffer += JSON.parse(ev.data).text; out.innerHTML = render(buffer); });
-  es.addEventListener('answer', ev => {
-    const d = JSON.parse(ev.data);
-    out.innerHTML = render(d.text);
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.textContent = `${d.steps} steps · ${d.seconds}s · ${d.usage.prompt_tokens + d.usage.completion_tokens} tokens`;
-    out.appendChild(meta);
-    es.close(); reset();
-  });
-  es.addEventListener('error', ev => {
-    let msg = 'Connection lost.';
-    try { msg = JSON.parse(ev.data).text; } catch (_) {}
-    const p = document.createElement('p'); p.className = 'err'; p.textContent = msg;
-    out.appendChild(p); es.close(); reset();
-  });
+  try {
+    await readStream({q: question, history}, (kind, d) => {
+      if (kind === 'tool') {
+        const arg = d.args.query || d.args.pattern || d.args.path || d.args.filter || '';
+        step(`${d.name}(${arg})`);
+      } else if (kind === 'token') {
+        buffer += d.text; answer.innerHTML = render(buffer);
+      } else if (kind === 'answer') {
+        answer.innerHTML = render(d.text);
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `${d.steps} steps · ${d.seconds}s · ${d.usage.prompt_tokens + d.usage.completion_tokens} tokens`;
+        answer.appendChild(meta);
+        // Only a completed answer joins the history; a stopped or failed turn
+        // would otherwise leave the model following a half-sentence.
+        history.push({role: 'user', content: question}, {role: 'assistant', content: d.text});
+      } else if (kind === 'error') {
+        note(d.text, 'err');
+      }
+    });
+  } catch (err) {
+    if (err.name !== 'AbortError') note('Connection lost.', 'err');
+  }
+  reset();
 };
 </script>
 </html>

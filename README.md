@@ -44,6 +44,8 @@ ollama pull qwen3:8b
 just run
 ```
 
+Any tool-capable tag works; set `OLLAMA_MODEL` in `.env` to pick a different one.
+
 Open <http://localhost:8000>. For the hosted configuration, set
 `OPENROUTER_API_KEY` and use `just run-prod`.
 
@@ -57,19 +59,23 @@ just check                # lint and every self-check
 just deploy               # build on Cloud Build, deploy a Cloud Run revision
 ```
 
-Configuration is environment variables, all optional except the key:
+Configuration is environment variables, read from `.env`. Each provider owns
+its own base URL, model and key, so switching between them cannot half-apply:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `OPENROUTER_API_KEY` | — | required in production |
-| `MODEL` | `google/gemini-3.1-flash-lite` | any tool-capable model; benchmarked in [ADR-0007](docs/adr/0007-default-model-gemini-flash-lite.md). `openrouter/free` costs nothing but varies in quality |
-| `BASE_URL` | `https://openrouter.ai/api/v1` | `http://localhost:11434/v1` for Ollama |
+| `PROVIDER` | `openrouter` | `ollama` or `openrouter`; picks which triple below is live. `just run` forces `ollama`, `just run-prod` forces `openrouter` |
+| `OPENROUTER_API_KEY` | — | required when the provider is `openrouter` |
+| `OPENROUTER_MODEL` | `google/gemini-3.1-flash-lite` | any tool-capable model; benchmarked in [ADR-0007](docs/adr/0007-default-model-gemini-flash-lite.md). `openrouter/free` costs nothing but varies in quality |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | |
+| `OLLAMA_MODEL` | `qwen3:8b` | the tag `just run` serves. A tag name says nothing about size — `ollama show <tag>` does |
+| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | |
 | `INDEX_PATH` | `index.db` | where the index lives |
 | `RATE_LIMIT_PER_HOUR` | `20` | per-IP question limit |
 | `DAILY_QUESTION_CAP` | `2000` | per-instance daily ceiling |
 | `REQUEST_TIMEOUT_SECONDS` | `120` | wall-clock ceiling on one answer |
 
-`just setup` creates a gitignored `.env` from `.env.example`; `just run-prod`
+`just setup` creates a gitignored `.env` from `.env.example`; every recipe
 loads it. Set a hard spend limit on the OpenRouter key as well — it is the only
 budget ceiling that concurrency cannot exceed. See [SECURITY.md](SECURITY.md)
 for where every credential lives.
@@ -89,7 +95,7 @@ embedding API.
   abuse controls
 - [Deploying](docs/how-to/deploy.md) — Cloud Run, Cloud Build and the CI deploy path
 - [Decision records](docs/adr/) — why SQLite, why local embeddings, why
-  OpenRouter, why no framework, why Cloud Run
+  OpenRouter, why no framework, why Cloud Run, why a built-in fetch tool
 
 ## License
 

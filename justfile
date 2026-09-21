@@ -1,3 +1,8 @@
+# .env holds every provider setting; a recipe chooses only which provider is
+# live. Note this also puts OPENROUTER_API_KEY in every recipe's environment,
+# not only the two that need it.
+set dotenv-load := true
+
 name := "ask-gen3"
 region := env("REGION", "us-central1")
 gcp_project := env("GCP_PROJECT", "ask-gen3")
@@ -17,6 +22,7 @@ test:
     uv run python -m ingest.test_schema
     uv run python -m ingest.test_chunk
     uv run python -m server.test_retrieve
+    uv run python -m server.test_web
     uv run python -m server.test_agent
     uv run python -m server.test_app
     uv run evals/check.py
@@ -47,15 +53,16 @@ index args="":
 index-dev:
     uv run python -m ingest.build --only indexd,dictionaryutils --out index.db
 
-# Serve locally against Ollama. Needs `ollama serve` and a tool-capable model.
+# Serve locally against Ollama: OLLAMA_* in .env. Needs `ollama serve` and a
+# tool-capable tag — and `ollama show <tag>` is the only honest source for how
+# big that tag is, the name is not.
 run:
-    BASE_URL=http://localhost:11434/v1 MODEL=${MODEL:-qwen3.8:latest} \
-      uv run uvicorn server.app:app --reload --port 8000
+    PROVIDER=ollama uv run uvicorn server.app:app --reload --port 8000
 
-# Serve the way production does: OpenRouter, no reload. Reads .env.
+# Serve the way production does: OPENROUTER_* in .env, no reload.
 run-prod:
     @test -f .env || (echo "no .env — run 'just setup' then add your key" && exit 1)
-    uv run --env-file .env uvicorn server.app:app --port 8000
+    PROVIDER=openrouter uv run uvicorn server.app:app --port 8000
 
 # Build the container image locally. Needs an index.db to bake in.
 docker:
@@ -76,5 +83,6 @@ deploy tag="latest":
 # Run that image the way production does, against local Ollama.
 docker-run:
     docker run --rm -p 8000:8000 \
-      -e BASE_URL=http://host.docker.internal:11434/v1 \
-      -e MODEL=${MODEL:-qwen3.8:latest} ask-gen3
+      -e PROVIDER=ollama \
+      -e OLLAMA_BASE_URL=http://host.docker.internal:11434/v1 \
+      -e OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3:8b}" ask-gen3

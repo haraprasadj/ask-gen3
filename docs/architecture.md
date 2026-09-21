@@ -129,7 +129,7 @@ bottleneck — but only once the eval set says so.
 ## Agent loop
 
 Hand-rolled tool calling against OpenRouter's OpenAI-compatible endpoint
-([ADR-0004](adr/0004-no-agent-framework.md)). Four tools:
+([ADR-0004](adr/0004-no-agent-framework.md)). Five tools:
 
 | Tool | Purpose |
 |---|---|
@@ -137,12 +137,32 @@ Hand-rolled tool calling against OpenRouter's OpenAI-compatible endpoint
 | `grep(pattern, repo=None, path_glob=None)` | exact symbol/string lookup via FTS5 |
 | `open_file(repo, path, start, end)` | read a span around a hit, reassembled from the chunks covering it — the index stores chunks, not files, and gaps are reported rather than invented |
 | `list_repos(filter)` | orient when the question names no repo |
+| `fetch_url(url)` | read a page the index does not hold, from an allowlisted host over https — the one tool that leaves the process ([ADR-0009](adr/0009-built-in-fetch-tool-over-mcp.md)) |
 
-The loop runs to a hard ceiling of 6 tool calls and ~25 k prompt tokens, then
-forces a final answer. Every claim in the answer carries a
+The loop runs to one ceiling: 180 k tokens billed across the whole question,
+summed over every call, which is roughly USD 0.05 at flash-lite rates. There is
+no step count — a cheap question gets as many rounds as it needs, and what a
+round costs is what limits them. When the budget will not fit another round the
+final call is offered no tools, so it has to answer; if a single round overruns
+the budget outright the loop stops and reports the count. Every claim in the answer carries a
 `repo/path#Lstart-Lend` citation linking to GitHub at the indexed commit; the
 system prompt requires the model to say it does not know rather than answer
 from parametric memory. Tokens stream to the browser over SSE.
+
+Follow-up questions are conversational: the page keeps the transcript and posts
+it back with each question, so `/ask` is a POST rather than an `EventSource`
+GET. There is no turn or character limit — `history_messages` fills a 6 k token
+budget newest-first, so a long exchange of short questions survives whole while
+one verbose answer is truncated rather than evicting four others. Tokens are
+estimated at four characters each rather than by loading a tokenizer for a
+provider that varies; every response reports real `prompt_tokens`, so the
+estimate is checkable. The server stores none of it, which is what lets any
+Cloud Run instance serve any turn. Only the text travels — prior tool results
+are dropped, because history is re-sent on every call in the question, so
+replaying tool results would spend the budget on the second question — so the model is told to re-run the searches it needs rather
+than cite from the transcript. The history arrives in a caller-controlled body,
+so `parse_history` admits only `user` and `assistant` strings; a forged `system`
+turn never reaches the model.
 
 ## Cost
 
@@ -174,8 +194,8 @@ where the design gets lazy:
   entry, the only one a caller cannot forge. Both counters live in process
   memory, so the real ceiling is roughly N instances x the cap; the spend limit
   on the OpenRouter key is the one ceiling concurrency cannot defeat.
-- Hard caps on question length (600 chars), tool calls (6), prompt tokens
-  (25 k) and wall-clock per answer (120 s, and Cloud Run bills wall-clock).
+- Hard caps on question length (600 chars), billed tokens per question (180 k,
+  ~USD 0.05) and wall-clock per answer (120 s, and Cloud Run bills wall-clock).
 - No CDN or bot filtering in front today. If one is added, `client_ip()` must
   be told which header to trust, or the per-IP limit becomes meaningless.
 - Model output is rendered client-side as markdown into escaped text, under a

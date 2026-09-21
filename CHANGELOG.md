@@ -14,6 +14,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   an index builder producing `index.db` with hybrid BM25 and vector retrieval.
 - Server: streaming agent loop over four retrieval tools, SSE endpoint and a
   single-page UI with per-IP rate limiting and a daily cap.
+- Cost ceiling: a question stops at 180 k billed tokens (~USD 0.05 at
+  flash-lite rates) counted across every call, replacing the 6-step and 25 k
+  prompt limits. `usage.prompt_tokens` now reports the billed sum rather than
+  the last call's prompt. Tool results are capped in tokens
+  (`MAX_TOOL_RESULT_TOKENS`) in one place for every tool, replacing the two
+  hand-synced 12,000-character limits.
+- Conversations: follow-up questions carry as much prior history as a 6 k token
+  budget holds, held by the page and posted to `/ask`, with a "New
+  conversation" control to clear them.
+- `PROVIDER` selects between `ollama` and `openrouter`, each owning its own
+  `*_BASE_URL`, `*_MODEL` and `*_API_KEY` in `.env`; no model or URL is
+  hardcoded in the justfile.
+- `fetch_url` tool reading allowlisted public pages over https, with redirect
+  re-checking and a private-address refusal (ADR-0009).
+- UI: the composer sits below the transcript, chat style.
 - UI: Gen3 logo, markdown rendering for answers (headings, tables, lists, code,
   citation chips) and a stop control on the streaming request.
 - Lambda container image, CI workflow, and a weekly index-build workflow.

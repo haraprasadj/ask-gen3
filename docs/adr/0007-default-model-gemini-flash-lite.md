@@ -46,7 +46,7 @@ lands on.
 
 ## Decision
 
-`google/gemini-3.1-flash-lite` is the default `MODEL`. `openrouter/free` is the
+`google/gemini-3.1-flash-lite` is the default `OPENROUTER_MODEL`. `openrouter/free` is the
 documented zero-cost option for anyone running this without a budget.
 
 ## Consequences
