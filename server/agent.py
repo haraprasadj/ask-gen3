@@ -241,6 +241,11 @@ def estimate_tokens(text: str) -> int:
     return len(text) // CHARS_PER_TOKEN
 
 
+def token_chars(tokens: int) -> int:
+    """The inverse of estimate_tokens: how many characters a budget buys."""
+    return tokens * CHARS_PER_TOKEN
+
+
 def history_messages(history: list[dict]) -> list[dict]:
     """As much of the conversation as MAX_HISTORY_TOKENS holds, newest first.
 
@@ -254,7 +259,7 @@ def history_messages(history: list[dict]) -> list[dict]:
         role, content = message.get("role"), str(message.get("content", "")).strip()
         if role not in ("user", "assistant") or not content:
             continue
-        room = (MAX_HISTORY_TOKENS - spent) * CHARS_PER_TOKEN
+        room = token_chars(MAX_HISTORY_TOKENS - spent)
         if room <= 0:
             break
         # Truncated rather than dropped: the newest message is the one a
@@ -303,7 +308,7 @@ def answer(
     seen_calls: set[str] = set()
     # prompt_tokens is the billed sum over calls, not the last prompt.
     usage = {"prompt_tokens": 0, "completion_tokens": 0}
-    step, prompt = 0, 0
+    step, prompt_tokens = 0, 0
 
     while True:
         spent = usage["prompt_tokens"] + usage["completion_tokens"]
@@ -336,11 +341,11 @@ def answer(
             yield Event("error", f"model call failed: {type(e).__name__}")
             return
 
-        content, calls, prompt = "", {}, 0
+        content, calls, prompt_tokens = "", {}, 0
         for chunk in stream:
             if getattr(chunk, "usage", None):
-                prompt = chunk.usage.prompt_tokens or 0
-                usage["prompt_tokens"] += prompt
+                prompt_tokens = chunk.usage.prompt_tokens or 0
+                usage["prompt_tokens"] += prompt_tokens
                 usage["completion_tokens"] += chunk.usage.completion_tokens or 0
             if not chunk.choices:
                 continue
@@ -360,7 +365,7 @@ def answer(
                 if tc.function and tc.function.arguments:
                     slot["function"]["arguments"] += tc.function.arguments
 
-        if not prompt:
+        if not prompt_tokens:
             # No usage reported: bill the estimate, or nothing counts up and the
             # loop has no way to stop.
             usage["prompt_tokens"] += pending
@@ -425,7 +430,7 @@ def answer(
                     "tool_call_id": call["id"],
                     # Every tool result is clipped here, including fetched pages,
                     # so there is one cap rather than one per tool.
-                    "content": result[: MAX_TOOL_RESULT_TOKENS * CHARS_PER_TOKEN],
+                    "content": result[: token_chars(MAX_TOOL_RESULT_TOKENS)],
                 }
             )
 

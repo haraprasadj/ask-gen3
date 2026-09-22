@@ -45,15 +45,19 @@ BANNER = (
 )
 
 
-def host_allowed(host: str) -> bool:
+def host_matches(host: str, suffixes: tuple[str, ...]) -> bool:
+    """The host itself or anything under it. One normaliser for both checks."""
     host = host.lower().rstrip(".")
-    return any(host == s or host.endswith("." + s) for s in ALLOWED_SUFFIXES)
+    return any(host == s or host.endswith("." + s) for s in suffixes)
+
+
+def host_allowed(host: str) -> bool:
+    return host_matches(host, ALLOWED_SUFFIXES)
 
 
 def owner_allowed(host: str, path: str) -> bool:
     """On the GitHub hosts, the first path segment must be the Gen3 org."""
-    host = host.lower().rstrip(".")
-    if not any(host == h or host.endswith("." + h) for h in OWNED_HOSTS):
+    if not host_matches(host, OWNED_HOSTS):
         return True
     # Owners are case-insensitive on GitHub, and it must be the whole segment:
     # `uc-cdis-mirror` is somebody else.

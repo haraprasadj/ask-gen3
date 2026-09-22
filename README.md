@@ -64,7 +64,7 @@ its own base URL, model and key, so switching between them cannot half-apply:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PROVIDER` | `openrouter` | `ollama` or `openrouter`; picks which triple below is live. `just run` forces `ollama`, `just run-prod` forces `openrouter` |
+| `PROVIDER` | `openrouter` | `ollama` or `openrouter`; picks which triple below is live. `.env.example` ships `ollama` for local work. `just run` forces `ollama`, `just run-prod` forces `openrouter` |
 | `OPENROUTER_API_KEY` | — | required when the provider is `openrouter` |
 | `OPENROUTER_MODEL` | `google/gemini-3.1-flash-lite` | any tool-capable model; benchmarked in [ADR-0007](docs/adr/0007-default-model-gemini-flash-lite.md). `openrouter/free` costs nothing but varies in quality |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | |
