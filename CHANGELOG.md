@@ -14,21 +14,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   an index builder producing `index.db` with hybrid BM25 and vector retrieval.
 - Server: streaming agent loop over four retrieval tools, SSE endpoint and a
   single-page UI with per-IP rate limiting and a daily cap.
-- Cost ceiling ([ADR-0010](docs/adr/0010-a-cost-ceiling-per-question-not-a-step-count.md)): a question stops at 180 k billed tokens (~USD 0.05 at
-  flash-lite rates) counted across every call, replacing the 6-step and 25 k
-  prompt limits. `usage.prompt_tokens` now reports the billed sum rather than
-  the last call's prompt. Tool results are capped in tokens
-  (`MAX_TOOL_RESULT_TOKENS`) in one place for every tool, replacing the two
-  hand-synced 12,000-character limits.
 - Conversations: follow-up questions carry as much prior history as a 6 k token
   budget holds, held by the page and posted to `/ask`, with a "New
   conversation" control to clear them.
-- `PROVIDER` selects between `ollama` and `openrouter`, each owning its own
-  `*_BASE_URL`, `*_MODEL` and `*_API_KEY` in `.env`; no model or URL is
-  hardcoded in the justfile.
 - `fetch_url` tool reading allowlisted public pages over https, with redirect
   re-checking and a private-address refusal (ADR-0009).
-- UI: the composer sits below the transcript, chat style.
 - UI: Gen3 logo, markdown rendering for answers (headings, tables, lists, code,
   citation chips) and a stop control on the streaming request.
 - Lambda container image, CI workflow, and a weekly index-build workflow.
@@ -56,21 +46,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Code of Conduct (Contributor Covenant 2.1), `CODEOWNERS`, and issue and pull
   request templates.
 
-### Fixed
-
-- **Security:** the answer renderer escaped `< > &` but not quotes, while
-  interpolating model output into `href` attributes — repository content, which
-  the model reads, could break out into an event handler and run script.
-- **Security:** rate limiting keyed on `cf-connecting-ip` and the leftmost
-  `X-Forwarded-For` entry, both set by the caller, so the per-IP limit and with
-  it the spend ceiling could be bypassed with one header. It now uses the
-  address the Cloud Run frontend observed.
-- Rate-limit bucket eviction dropped every window at 10 k entries, which let a
-  flood of throwaway keys reset limits for real callers; only expired windows
-  are dropped now.
-
 ### Changed
 
+- **Breaking:** `/ask` is a POST taking a JSON body, not a GET with query
+  parameters; the body carries the prior conversation.
+- **Breaking:** `MODEL` and `BASE_URL` are replaced by `PROVIDER` selecting
+  `ollama` or `openrouter`, each owning its own `*_BASE_URL`, `*_MODEL` and
+  `*_API_KEY` in `.env`. An existing `.env` needs updating; no model or URL is
+  hardcoded in the justfile.
+- Cost ceiling ([ADR-0010](docs/adr/0010-a-cost-ceiling-per-question-not-a-step-count.md)): a question stops at 180 k billed tokens (~USD 0.05 at
+  flash-lite rates) counted across every call, replacing the 6-step and 25 k
+  prompt limits. `usage.prompt_tokens` now reports the billed sum rather than
+  the last call's prompt.
+- UI: the composer sits below the transcript, chat style.
 - The container runs as `nobody` rather than root.
 - GitHub Actions are pinned to commit SHAs instead of floating tags, and base
   images to digests for the same reason.
@@ -86,3 +74,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Abuse-control documentation now describes the controls that exist, rather
   than a planned Cloudflare, answer cache and request-logging setup that was
   never built.
+
+### Removed
+
+- The 6-step and 25,000-character prompt limits, and the two hand-synced
+  12,000-character tool-result caps, all superseded by the single token ceiling
+  ([ADR-0010](docs/adr/0010-a-cost-ceiling-per-question-not-a-step-count.md))
+  and by `MAX_TOOL_RESULT_TOKENS` applied in one place for every tool.
+
+### Fixed
+
+- **Security:** the answer renderer escaped `< > &` but not quotes, while
+  interpolating model output into `href` attributes — repository content, which
+  the model reads, could break out into an event handler and run script.
+- **Security:** rate limiting keyed on `cf-connecting-ip` and the leftmost
+  `X-Forwarded-For` entry, both set by the caller, so the per-IP limit and with
+  it the spend ceiling could be bypassed with one header. It now uses the
+  address the Cloud Run frontend observed.
+- Rate-limit bucket eviction dropped every window at 10 k entries, which let a
+  flood of throwaway keys reset limits for real callers; only expired windows
+  are dropped now.

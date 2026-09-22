@@ -4,7 +4,8 @@ Date: 2026-09-12
 
 ## Status
 
-Accepted
+Accepted. The step and prompt ceiling described below is amended by
+[ADR-0010](0010-a-cost-ceiling-per-question-not-a-step-count.md).
 
 ## Context
 
