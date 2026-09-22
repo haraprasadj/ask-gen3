@@ -46,6 +46,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "fastembed" },
+    { name = "httpx" },
     { name = "openai" },
     { name = "sqlite-vec" },
     { name = "uvicorn" },
@@ -60,6 +61,7 @@ ingest = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "fastembed", specifier = ">=0.8.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "openai", specifier = ">=3.13.0" },
     { name = "sqlite-vec", specifier = ">=0.1.9" },
     { name = "uvicorn", specifier = ">=0.52.4" },

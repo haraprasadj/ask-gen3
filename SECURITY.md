@@ -34,7 +34,7 @@ pins `:latest` at start, so a running revision keeps the value it booted with.
 ## What leaves this system, and what is kept
 
 Your question is sent to OpenRouter, which routes it to the model named by
-`MODEL` — a third party, under their terms, not ours. The page says so in the
+`OPENROUTER_MODEL` — a third party, under their terms, not ours. The page says so in the
 footer. Don't put anything confidential in a question.
 
 What this application keeps:
@@ -44,6 +44,7 @@ What this application keeps:
 | Questions | not stored. They exist for the life of one request |
 | Answers | not stored. The page holds the only copy |
 | Rate-limit state | client IP and request timestamps, in memory, for one hour, in one instance. Lost on every restart |
+| Outbound fetches | a GET to an allowlisted public host when the model calls `fetch_url`, carrying no question text beyond the URL it chose and no cookie or credential |
 | Logs | Cloud Run request logs (IP, path, status, timing) and the exception *type* of anything that broke, at Google's default retention. Question text is never logged |
 
 There is no database of usage, no analytics, and no cookie.
@@ -103,15 +104,31 @@ action joins the supply chain it is meant to be checking.
 
 ## Known limitation: prompt injection
 
-Indexed repository content is untrusted input that reaches the model as tool
-output. Anyone who can land a file in a public uc-cdis repository can put
+Indexed repository content, and any page returned by `fetch_url`, is untrusted
+input that reaches the model as tool output. Anyone who can land a file in a
+public uc-cdis repository — or a page on an allowlisted host — can put
 instructions in it, and the model may follow them. The system prompt tells the
 model to report such content rather than obey it, which is a mitigation and not
 a control.
 
-What bounds the damage is that the tools have no side effects: they read a
-read-only SQLite file and nothing else. There is no credential the model can
-reach, no write path, and no request it can make on the user's behalf. The
-realistic worst case is a confidently wrong or hostile-sounding answer, plus
-whatever an attacker can do with a link in the page — which is why the escaping
-and the CSP above are treated as security boundaries rather than cosmetics.
+What bounds the damage is that the tools still have no write path and reach no
+credential: four of them read a read-only SQLite file, and the fifth makes an
+outbound GET the model does not control the destination of. `fetch_url` is the
+one tool that acts outside the process, so it is constrained in `server/web.py`
+and tested in `server/test_web.py`:
+
+| Control | Why |
+|---|---|
+| host allowlist, https only | the model picks the URL; an open fetcher reachable by prompt is server-side request forgery |
+| on the GitHub hosts, the first path segment must be `uc-cdis` | the host is not the author: anyone can create a repository, and indexed repo content already reaches the model as untrusted input |
+| redirects re-checked at every hop, never followed by the client | a redirect from an allowed host to `169.254.169.254` is otherwise the whole attack |
+| resolved addresses must be public | an allowlisted name pointed at a private range is a mistake or an attack, and both end the same way |
+| 300 kB, 10 s, text content types only | a fetch is not a way to spend the instance |
+| no request body, no headers from the question, no cookies | nothing of the user's travels outbound |
+
+The metadata server is the target that matters on Cloud Run, because it issues
+the service account token; the allowlist and the address check are what keep it
+unreachable. The realistic worst case remains a confidently wrong or
+hostile-sounding answer, plus whatever an attacker can do with a link in the
+page — which is why the escaping and the CSP above are treated as security
+boundaries rather than cosmetics.

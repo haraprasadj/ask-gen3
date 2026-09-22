@@ -10,6 +10,7 @@ authors = [{ name = "Hara Prasad Juvvala", email = "5363831+haraprasadj@users.no
 dependencies = [
     "fastapi>=0.141.1",
     "fastembed>=0.8.0",
+    "httpx>=0.28.1",
     "openai>=3.13.0",
     "sqlite-vec>=0.1.9",
     "uvicorn>=0.52.4",

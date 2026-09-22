@@ -22,3 +22,6 @@ wheels/
 .env.*
 !.env.example
 *.pem
+
+# macOS
+.DS_Store
