@@ -91,6 +91,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Citations into paths containing a space, such as gen3.org's
+  `archived pages/` (24 indexed files), stayed plain text. They now link, with
+  the space encoded.
 - Citations grouped in one bracket, `[a#L1-L2, b#L3-L4]`, stayed plain text.
   They are split and each links to its file.
 - The `deploy` workflow could not fetch `index.db`: its token lacked
