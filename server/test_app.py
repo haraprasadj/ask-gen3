@@ -170,6 +170,26 @@ def test_renderer_cannot_break_out_of_an_attribute() -> None:
     assert 'href="https://github.com/uc-cdis/fence/' in html, "citations stopped rendering"
 
 
+def test_citation_without_the_org_still_links_to_uc_cdis() -> None:
+    if not shutil.which("node"):
+        print("  (node not found — citation check skipped)")
+        return
+    start = A.PAGE.index("const esc =")
+    source = A.PAGE[start : A.PAGE.index("let streaming = false;")]
+    # Small models drop the org from the marker they were given; the first form
+    # once rendered as github.com/fence/fence/blob/HEAD/sync/sync_users.py.
+    want = "https://github.com/uc-cdis/fence/blob/HEAD/fence/sync/sync_users.py#L2508-L2587"
+    for marker in (
+        "[fence/fence/sync/sync_users.py#L2508-L2587]",
+        "[uc-cdis/fence/fence/sync/sync_users.py#L2508-L2587]",
+    ):
+        script = f"{source}\nconsole.log(render({json.dumps('x ' + marker)}));"
+        html = subprocess.run(
+            ["node", "-e", script], capture_output=True, text=True, check=True
+        ).stdout
+        assert f'href="{want}"' in html, f"{marker} -> {html}"
+
+
 if __name__ == "__main__":
     test_client_ip_ignores_what_the_caller_claims()
     test_rate_limit_holds_and_eviction_spares_live_windows()
@@ -177,4 +197,5 @@ if __name__ == "__main__":
     test_page_carries_a_nonce_and_a_policy()
     test_history_from_the_body_is_filtered()
     test_renderer_cannot_break_out_of_an_attribute()
+    test_citation_without_the_org_still_links_to_uc_cdis()
     print("ok — client identity, rate limits, /ask frames, history filter, nonce, escaping")
