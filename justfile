@@ -34,6 +34,14 @@ fmt:
 
 check: lint test
 
+# Start a changelog entry for this change in changelog.d/ (CONTRIBUTING.md).
+fragment:
+    uvx scriv@1.8.0 create
+
+# At release: fold every fragment into CHANGELOG.md under pyproject's version.
+changelog:
+    uvx scriv@1.8.0 collect
+
 # Dependency CVEs and a secret scan of the history, as CI runs them. Needs docker.
 audit:
     # Audits the synced environment rather than an exported requirements file:
