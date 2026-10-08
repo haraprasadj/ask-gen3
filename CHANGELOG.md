@@ -9,6 +9,53 @@ which `just changelog` collects into a new version section here.
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.2.0'></a>
+## [0.2.0] - 2026-10-08
+
+### Changed
+
+- **Breaking:** `PROVIDER` picks `local` or `hosted` instead of `ollama` or
+  `openrouter`, and each slot reads `<SLOT>_INFERENCE_URL`, `_MODEL` and
+  `_API_KEY`. Either slot takes any OpenAI-compatible endpoint; local still
+  defaults to Ollama and hosted to OpenRouter. Rename the variables in an
+  existing `.env`: `OLLAMA_BASE_URL` → `LOCAL_INFERENCE_URL`, `OLLAMA_MODEL` →
+  `LOCAL_INFERENCE_MODEL`, `OPENROUTER_API_KEY` → `HOSTED_INFERENCE_API_KEY`,
+  `OPENROUTER_BASE_URL` → `HOSTED_INFERENCE_URL`, `OPENROUTER_MODEL` →
+  `HOSTED_INFERENCE_MODEL`.
+- Deploys set the hosted URL and model from the `HOSTED_INFERENCE_URL` and
+  `HOSTED_INFERENCE_MODEL` repository variables, so production can move to
+  another endpoint without a code change. The `OPENROUTER_SECRET_NAME`
+  variable is now `HOSTED_INFERENCE_SECRET_NAME`.
+- The page footer names the host questions are sent to, taken from the
+  configured URL, and OpenRouter's attribution headers go only to OpenRouter.
+- Deploys skip the provenance attestation while the repository is private.
+  GitHub stores none for a private personal repository, and the failed step
+  blocked every deploy. It runs again as soon as the repository is public;
+  images deployed before then cannot be verified with `gh attestation verify`.
+
+### Removed
+
+- The Gen3 logo from the page header, with its NOTICE attribution. The page
+  carries the project name only.
+
+### Fixed
+
+- The deploy guide's service account setup was missing the roles Cloud Build
+  needs to accept a source upload, so the first CI deploy failed with
+  "forbidden from accessing the bucket". It now grants
+  `serviceusage.serviceUsageConsumer` and `storage.bucketViewer` on the
+  project, and `storage.objectAdmin` on the Cloud Build bucket.
+- The deploy workflow failed after a successful image build, because
+  streaming Cloud Build's logs needs project-wide Viewer. It now submits the
+  build asynchronously and polls its status; the logs stay in the console.
+
+### Security
+
+- The container image moves to the current `python:3.13-slim`, picking up
+  Debian fixes for perl, OpenSSL, SQLite, PCRE2 and gzip, and no longer ships
+  `pip`, whose bundled urllib3, msgpack and setuptools carried known
+  vulnerabilities. The app is installed and run with uv and never used it.
+
 <a id='changelog-0.1.0'></a>
 ## [0.1.0] - 2026-10-08
 

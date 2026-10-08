@@ -61,14 +61,15 @@ There is no database of usage, no analytics, and no cookie.
 | Base images | pinned by digest, not tag (`Dockerfile`) |
 | Actions | pinned by commit SHA, not tag |
 | Updates | Dependabot, monthly, for uv, Actions and Docker |
-| Provenance | SLSA attestation binding the image digest to the workflow run, pushed to the registry |
+| Provenance | SLSA attestation binding the image digest to the workflow run, pushed to the registry. Only while the repository is public: GitHub stores none for a private personal repository, so the step is skipped |
 | SBOM | SPDX, generated from the image and attached to the run |
 
 The Trivy gate, the SBOM and the attestation run only in `deploy.yml`.
 `just deploy` builds on Cloud Build and deploys without any of them; it is for
 the first deploy and for when CI is unavailable. An image it pushed is tagged
 `latest`, not a commit SHA, and has no attestation, so the check below fails
-for it.
+for it. The same is true of an image `deploy.yml` shipped while the repository
+was private.
 
 Verify a published image before trusting it:
 
