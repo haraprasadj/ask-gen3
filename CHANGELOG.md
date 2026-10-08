@@ -77,6 +77,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a planned Cloudflare, answer cache and request-logging setup that was
   never built.
 
+- CI runs `just check` and `just audit` instead of its own copy of their
+  commands. The copy had drifted: `server.test_web`, the `fetch_url` SSRF
+  checks, and the evals file check never ran in CI.
+- `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
+  3.13, whose current builds load SQLite extensions. It works on Linux too.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
@@ -90,6 +96,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   300 kB, so the cap bounded what reached the model but not memory: one fetch
   of a very large allowlisted file could exhaust the instance. The body is now
   streamed and reading stops at the cap.
+- `just test` crashed on a fresh clone: `evals/check.py` opened `index.db`
+  unconditionally. Citations are now checked only for repositories the index
+  holds, and the rest are counted as skipped, so it passes with no index, the
+  two-repo `just index-dev` build, or the full one.
 - A citation written without its org, `[fence/fence/x.py#L1-L5]`, linked to
   `github.com/fence/fence/...`, a 404. The org is now optional in the marker
   and always `uc-cdis` in the link.

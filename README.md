@@ -15,18 +15,19 @@ it, embeddings are local, and only generation costs money.
 
 ## Install
 
-Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/),
-[just](https://github.com/casey/just#installation), and a Python built with
-loadable SQLite extensions — retrieval needs `sqlite-vec`. Several CPython
-distributions on macOS, including uv's own managed builds, are compiled without
-it and fail with `'sqlite3.Connection' object has no attribute
-'enable_load_extension'`. Homebrew's Python works:
+Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/)
+and [just](https://github.com/casey/just#installation). uv fetches Python 3.13
+itself.
 
 ```sh
-brew install python@3.13
 just setup
 just test
 ```
+
+Retrieval loads the `sqlite-vec` extension, so Python must allow SQLite
+extensions. Current uv-managed builds do; older ones fail with
+`'sqlite3.Connection' object has no attribute 'enable_load_extension'`. If you
+see that, run `uv self update`, then `uv python install --reinstall 3.13`.
 
 ## Quickstart
 
