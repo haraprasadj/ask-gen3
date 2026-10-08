@@ -21,6 +21,14 @@ ingest = [
     "pyyaml>=6.0.3",
 ]
 
+# Changelog fragments in changelog.d/, collected into CHANGELOG.md at release.
+[tool.scriv]
+format = "md"
+md_header_level = "2"
+categories = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
+version = "literal: pyproject.toml: project.version"
+entry_title_template = "[{{ version }}] - {{ date.strftime('%Y-%m-%d') }}"
+
 [tool.ruff]
 line-length = 100
 target-version = "py313"
