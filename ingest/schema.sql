@@ -21,7 +21,7 @@ create table repos (
   tier           integer not null,   -- 1 docs, 2 core service, 3 readme-only
   commit_sha     text not null,
   default_branch text not null,
-  license        text,
+  license        text,               -- SPDX id from GitHub; unlicensed repos are not indexed
   indexed_at     text not null,      -- ISO 8601
   check (tier between 1 and 3)
 ) without rowid;
