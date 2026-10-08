@@ -158,6 +158,10 @@ def main() -> None:
     # FTS5 syntax in user input is data, not syntax.
     assert retrieve.search('alias OR "') is not None
     assert retrieve.grep("a AND (b") == []
+    # A quote is ordinary text to the model (config keys, string literals); it
+    # must neither break the query nor skip the substring fallback.
+    assert [h.path for h in retrieve.grep('presigned_url"')] == ["fence/oauth.py"]
+    assert [h.path for h in retrieve.grep('"presigned_url')] == ["fence/oauth.py"]
 
     # open_file stitches overlapping windows losslessly and is honest about gaps.
     body = retrieve.open_file("fence", "fence/long.py", 1, 10)
