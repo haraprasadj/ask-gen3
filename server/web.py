@@ -126,19 +126,26 @@ def fetch(url: str, client: httpx.Client | None = None) -> str:
             refusal = check(url)
             if refusal:
                 return f"cannot fetch: {refusal}"
-            response = client.get(url, headers={"User-Agent": "ask-gen3"})
-            if response.is_redirect:
-                # Re-checked rather than followed by httpx, because a redirect
-                # from an allowed host to the metadata server is the whole
-                # attack, and follow_redirects would take it.
-                url = str(response.next_request.url) if response.next_request else ""
-                continue
-            if response.status_code != 200:
-                return f"cannot fetch: {url} returned HTTP {response.status_code}"
-            content_type = response.headers.get("content-type", "").lower()
-            if not any(t in content_type for t in ALLOWED_TYPES):
-                return f"cannot fetch: {url} is {content_type or 'an unknown type'}, not text"
-            body = response.content[:MAX_BYTES].decode(response.encoding or "utf-8", "replace")
+            # Streamed, so the body is read only as far as MAX_BYTES: a full read
+            # trimmed afterwards would let one huge file hold the instance.
+            with client.stream("GET", url, headers={"User-Agent": "ask-gen3"}) as response:
+                if response.is_redirect:
+                    # Re-checked rather than followed by httpx, because a redirect
+                    # from an allowed host to the metadata server is the whole
+                    # attack, and follow_redirects would take it.
+                    url = str(response.next_request.url) if response.next_request else ""
+                    continue
+                if response.status_code != 200:
+                    return f"cannot fetch: {url} returned HTTP {response.status_code}"
+                content_type = response.headers.get("content-type", "").lower()
+                if not any(t in content_type for t in ALLOWED_TYPES):
+                    return f"cannot fetch: {url} is {content_type or 'an unknown type'}, not text"
+                raw = b""
+                for part in response.iter_bytes():
+                    raw += part
+                    if len(raw) >= MAX_BYTES:
+                        break
+                body = raw[:MAX_BYTES].decode(response.encoding or "utf-8", "replace")
             text = to_text(body, content_type)
             return BANNER.format(url=url) + (text or "(the page had no readable text)")
         return "cannot fetch: too many redirects"
