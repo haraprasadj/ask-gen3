@@ -45,7 +45,7 @@ What this application keeps:
 | Answers | not stored. The page holds the only copy |
 | Rate-limit state | client IP and request timestamps, in memory, for one hour, in one instance. Lost on every restart |
 | Outbound fetches | a GET to an allowlisted public host when the model calls `fetch_url`, carrying no question text beyond the URL it chose and no cookie or credential |
-| Logs | Cloud Run request logs (IP, path, status, timing) and the exception *type* of anything that broke, at Google's default retention. Question text is never logged |
+| Logs | Cloud Run request logs (IP, path, status, timing) and the exception *type* and source line of anything that broke, at Google's default retention. Question text is never logged |
 
 There is no database of usage, no analytics, and no cookie.
 

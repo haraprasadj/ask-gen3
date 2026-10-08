@@ -1,5 +1,5 @@
 -- index.db — the entire retrieval layer (ADR-0001).
--- Built offline (ADR-0005), shipped inside the Lambda image (ADR-0006),
+-- Built offline (ADR-0005), shipped inside the container image (ADR-0008),
 -- opened read-only at serving time. Nothing writes to it in production.
 
 pragma journal_mode = off;      -- never written after build

@@ -10,6 +10,7 @@ import json
 import os
 import secrets
 import time
+import traceback
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -70,7 +71,7 @@ def sse(event: str, payload: dict) -> str:
 
 
 # Cloud Run's frontend swallows /healthz before it reaches the container, so the
-# same check is also served at /health. Lambda and local use either.
+# same check is also served at /health. Locally, either works.
 @app.get("/healthz")
 @app.get("/health")
 def healthz() -> dict:
@@ -137,7 +138,10 @@ async def ask(request: Request) -> StreamingResponse:
                 elif event.kind == "error":
                     yield sse("error", {"text": event.text})
         except Exception as e:  # never leak a stack trace to the page
-            print(f"unhandled: {type(e).__name__}: {e}", flush=True)
+            # Type and location, never the message: it can carry the question
+            # or an upstream response body (SECURITY.md).
+            where = traceback.extract_tb(e.__traceback__)[-1]
+            print(f"unhandled: {type(e).__name__} at {where.filename}:{where.lineno}", flush=True)
             yield sse("error", {"text": "Something broke on our side."})
 
     return StreamingResponse(

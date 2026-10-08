@@ -21,10 +21,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   re-checking and a private-address refusal (ADR-0009).
 - UI: Gen3 logo, markdown rendering for answers (headings, tables, lists, code,
   citation chips) and a stop control on the streaming request.
-- Lambda container image, CI workflow, and a weekly index-build workflow.
-- Deployment: `deploy/bootstrap.sh` for the one-time AWS resources and a
-  `deploy` workflow that ships each index build via GitHub OIDC.
-- Cloud Run deployment (ADR-0008) replacing the Lambda path.
+- Container image, CI workflow, and an index-build workflow run by hand.
+- Cloud Run deployment (ADR-0008) and a `deploy` workflow that ships each
+  index build via GitHub OIDC.
 - `server/test_app.py`: self-check for rate limiting, the CSP nonce and the
   renderer's escaping, the last of which runs an injection payload through the
   real renderer under node.
@@ -77,6 +76,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a planned Cloudflare, answer cache and request-logging setup that was
   never built.
 
+- CI runs `just check` and `just audit` instead of its own copy of their
+  commands. The copy had drifted: `server.test_web`, the `fetch_url` SSRF
+  checks, and the evals file check never ran in CI.
+- `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
+  3.13, whose current builds load SQLite extensions. It works on Linux too.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
@@ -86,6 +91,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Security:** `fetch_url` read a response in full before trimming it to
+  300 kB, so the cap bounded what reached the model but not memory: one fetch
+  of a very large allowlisted file could exhaust the instance. The body is now
+  streamed and reading stops at the cap.
+- **Security:** an unhandled error in `/ask` logged the exception's message,
+  which can carry the question or an upstream response body, while SECURITY.md
+  promised only its type. It now logs the type and the line that raised it.
+- `just test` crashed on a fresh clone: `evals/check.py` opened `index.db`
+  unconditionally. Citations are now checked only for repositories the index
+  holds, and the rest are counted as skipped, so it passes with no index, the
+  two-repo `just index-dev` build, or the full one.
+- Requests to OpenRouter sent `HTTP-Referer: https://github.com/uc-cdis` by
+  default, attributing this project's traffic to the Gen3 organisation. The
+  default is now this repository, and `PUBLIC_URL` is documented.
+- `server/test_app.py` never ran two of its checks, the `/ask` stream framing
+  and the malformed-body cases: its hand-kept call list had missed them. It now
+  runs every `test_*` function, as the other self-checks do.
 - SECURITY.md presented the image CVE gate, SBOM and provenance attestation
   as covering every deployed image. They run only in `deploy.yml`; it now says
   `just deploy` ships without them, as do the deploy guide and the recipe.

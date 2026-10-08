@@ -9,6 +9,8 @@ wrong once, and both of which cost real money or run real script when they are.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import re
 import shutil
@@ -136,6 +138,29 @@ def test_ask_streams_sse_frames_and_forwards_the_history() -> None:
     assert "Half an answer" in response.text
 
 
+def test_a_crash_logs_its_type_not_its_message() -> None:
+    """An exception message can carry the question, or an upstream body;
+    SECURITY.md promises neither reaches the logs."""
+    original = A.agent.answer
+
+    def boom(q, client=None, history=None):
+        raise RuntimeError(f"upstream echoed: {q}")
+        yield
+
+    A.agent.answer = boom
+    try:
+        A._buckets.clear()
+        log = io.StringIO()
+        with contextlib.redirect_stdout(log):
+            response = TestClient(A.app).post("/ask", json={"q": "my private question"})
+        assert "Something broke" in response.text
+        assert "RuntimeError" in log.getvalue(), log.getvalue()
+        assert "private question" not in log.getvalue(), log.getvalue()
+        assert "private question" not in response.text.replace('"q"', "")
+    finally:
+        A.agent.answer = original
+
+
 def test_a_body_that_is_not_a_question_is_survivable() -> None:
     """The body is caller-controlled and unauthenticated; none of these may 500."""
     original = A.agent.answer
@@ -191,11 +216,9 @@ def test_citation_without_the_org_still_links_to_uc_cdis() -> None:
 
 
 if __name__ == "__main__":
-    test_client_ip_ignores_what_the_caller_claims()
-    test_rate_limit_holds_and_eviction_spares_live_windows()
-    test_daily_cap_refuses()
-    test_page_carries_a_nonce_and_a_policy()
-    test_history_from_the_body_is_filtered()
-    test_renderer_cannot_break_out_of_an_attribute()
-    test_citation_without_the_org_still_links_to_uc_cdis()
+    # Every test_* function, not a hand-kept list: the list once left two of
+    # them, the /ask stream and the malformed-body checks, never running.
+    for name, fn in list(globals().items()):
+        if name.startswith("test_"):
+            fn()
     print("ok — client identity, rate limits, /ask frames, history filter, nonce, escaping")
