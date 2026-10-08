@@ -82,6 +82,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
   3.13, whose current builds load SQLite extensions. It works on Linux too.
 
+- `pyproject.toml` lists the maintainer's GitHub noreply address rather than a
+  personal one.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
