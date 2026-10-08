@@ -6,24 +6,17 @@
 # server/test_app.py, which runs an injection payload through the real
 # renderer under node.
 #
-# TODO: dormant. Code scanning is not enabled on this repository, so uploading
-# results fails and every run goes red. The automatic triggers are removed
-# until that is sorted; restore them in the same commit that enables it:
-#
-#   push: { branches: [main] }
-#   pull_request:
-#   schedule:
-#     # A CVE in a code pattern lands without anyone pushing, so this also
-#     # runs on a clock. Monday morning, offset off the hour.
-#     - cron: "17 6 * * 1"
-#
-# Enabling means Settings -> Advanced Security -> Code scanning, choosing the
-# advanced/workflow setup rather than default so this file stays in charge.
-# On a private repo that is a paid add-on; making the repo public is free.
+# Needs code scanning enabled: Settings -> Advanced Security -> Code scanning,
+# advanced setup rather than default, so this file stays in charge. Free on a
+# public repository; without it the upload fails and every run goes red.
 name: codeql
 on:
-  # Manual only. `on:` cannot be empty, and an empty one marks the whole
-  # workflow invalid, which is the same red mark this is avoiding.
+  push: { branches: [main] }
+  pull_request:
+  schedule:
+    # A CVE in a code pattern lands without anyone pushing, so this also
+    # runs on a clock. Monday morning, offset off the hour.
+    - cron: "17 6 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -40,8 +33,8 @@ jobs:
       actions: read
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      - uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
         with:
           languages: python
           queries: security-and-quality
-      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      - uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
