@@ -83,8 +83,10 @@ gh variable set GCP_WIF_PROVIDER --body <workload-identity-provider-resource-nam
 gh variable set GCP_DEPLOY_SA --body github-deploy@ask-gen3.iam.gserviceaccount.com
 ```
 
-`.github/workflows/deploy.yml` then runs automatically whenever the weekly index
-build succeeds, and on demand from the Actions tab. It downloads `index.db` from
+`.github/workflows/deploy.yml` then runs automatically whenever an index build
+succeeds, and on demand from the Actions tab. The index workflow itself is
+started by hand: a stale index is not an outage, and a scheduled workflow
+auto-disables after 60 idle days. It downloads `index.db` from
 the index run, submits the build to Cloud Build, scans the image and stops on a
 fixable HIGH or CRITICAL CVE, attaches an SBOM and a provenance attestation,
 deploys the new revision by digest, and fails the run if `/health` does not come

@@ -88,7 +88,7 @@ parties. Nothing is stored: no question, no answer, no analytics, no cookie.
 
 ## How it works
 
-Two halves that share only a file. A weekly GitHub Actions job clones the
+Two halves that share only a file. A GitHub Actions job, run by hand, clones the
 curated repositories, chunks them, embeds locally, and produces `index.db`;
 the server opens it read-only and never talks to a database, vector store or
 embedding API.

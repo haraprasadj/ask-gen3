@@ -25,7 +25,7 @@ Constraints, in priority order:
 Two halves that share nothing but a file.
 
 ```
- OFFLINE (GitHub Actions, weekly)          ONLINE (Cloud Run container, x86)
+ OFFLINE (GitHub Actions, manual)          ONLINE (Cloud Run container, x86)
  ┌──────────────────────────────┐          ┌────────────────────────────────┐
  │ clone --depth=1 (repos.yaml) │          │ public URL, scale to zero      │
  │   ↓ select + chunk           │          │   ↓ FastAPI + SSE              │
@@ -171,7 +171,7 @@ turn never reaches the model.
 |---|---|
 | Cloud Run compute — free tier 180 k vCPU-s + 360 k GiB-s/month | 0 at this traffic (~50 CPU-hours free) |
 | Artifact Registry storage for the ~1.05 GB image | ~USD 0.10 |
-| Index build (GitHub Actions, weekly, free tier) | 0 |
+| Index build (GitHub Actions, on demand, free tier) | 0 |
 | Embeddings (local ONNX, both halves) | 0 |
 | Generation — `google/gemini-3.1-flash-lite`, USD 0.0015–0.007/answer by tool-step count ([ADR-0007](adr/0007-default-model-gemini-flash-lite.md)) | USD 10 per 1,400–6,600 answers |
 | Generation on `openrouter/free` instead | 0, at the free tier's request limits |
@@ -223,5 +223,5 @@ Retrieval recall is the metric that actually moves — chase it first.
 
 No user accounts, no conversation persistence, no multi-tenancy, no
 reranker, no GraphQL/agent-to-agent API, no incremental index updates — a
-weekly full rebuild costs nothing but unlimited public-repo CI minutes. Add each when there is a reason, not
+full rebuild costs nothing but unlimited public-repo CI minutes. Add each when there is a reason, not
 before.
