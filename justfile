@@ -11,9 +11,8 @@ image := region + "-docker.pkg.dev/" + gcp_project + "/" + name + "/app"
 default:
     @just --list
 
-# Install dependencies. Needs a Python built with loadable SQLite extensions.
+# Install dependencies, on the Python in .python-version (uv fetches it).
 setup:
-    uv venv --python "$(brew --prefix python@3.13)/bin/python3.13" --allow-existing
     uv sync
     @test -f .env || (cp .env.example .env && echo "created .env — add your OPENROUTER_API_KEY")
 
