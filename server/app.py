@@ -71,7 +71,7 @@ def sse(event: str, payload: dict) -> str:
 
 
 # Cloud Run's frontend swallows /healthz before it reaches the container, so the
-# same check is also served at /health. Lambda and local use either.
+# same check is also served at /health. Locally, either works.
 @app.get("/healthz")
 @app.get("/health")
 def healthz() -> dict:
