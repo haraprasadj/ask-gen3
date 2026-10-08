@@ -235,6 +235,20 @@ def test_grouped_citations_each_become_a_link() -> None:
         assert f'href="{base}/indexd/blob/HEAD/b.py#L5-L9"' in html, html
 
 
+def test_a_path_with_a_space_links_and_is_encoded() -> None:
+    if not shutil.which("node"):
+        print("  (node not found — citation check skipped)")
+        return
+    start = A.PAGE.index("const esc =")
+    source = A.PAGE[start : A.PAGE.index("let streaming = false;")]
+    # 24 indexed files live under gen3.org's "archived pages/".
+    text = "x [uc-cdis/gen3.org/archived pages/get-started.md#L2-L16]."
+    script = f"{source}\nconsole.log(render({json.dumps(text)}));"
+    html = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True).stdout
+    want = "https://github.com/uc-cdis/gen3.org/blob/HEAD/archived%20pages/get-started.md#L2-L16"
+    assert f'href="{want}"' in html, html
+
+
 if __name__ == "__main__":
     # Every test_* function, not a hand-kept list: the list once left two of
     # them, the /ask stream and the malformed-body checks, never running.
