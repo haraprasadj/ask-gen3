@@ -156,7 +156,9 @@ gh variable set HOSTED_INFERENCE_MODEL --body <model-id>
 The next deploy picks them up. Unset, both fall back to OpenRouter and the
 default model.
 
-Verify what a deploy published:
+Verify what a deploy published. This works only for deploys made while the
+repository was public; GitHub stores no attestation for a private personal
+repository, and the workflow skips the step:
 
 ```sh
 gh attestation verify \
