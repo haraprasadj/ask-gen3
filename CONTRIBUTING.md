@@ -1,7 +1,7 @@
 # Contributing
 
 1. Fork and branch off `main`.
-2. `uv sync` to set up; `uv run ...` to run anything.
+2. `just setup` to install and create `.env`; `uv run ...` to run anything.
 3. `just check` before you push — that is lint plus every self-check, and it is
    what CI runs.
 4. Open a PR describing what changed and why.

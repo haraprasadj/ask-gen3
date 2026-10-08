@@ -140,6 +140,30 @@ def test_body_is_capped_stripped_and_labelled_untrusted() -> None:
         web.socket.getaddrinfo = original
 
 
+def test_an_endless_body_is_not_read_past_the_cap() -> None:
+    """The cap is a memory bound only if reading stops at it. Trimming after
+    a full read would let one fetch of a huge file hold the instance."""
+    original = web.socket.getaddrinfo
+    allow_all_dns()
+    sent = 0
+
+    def endless():
+        nonlocal sent
+        while sent < 100 * web.MAX_BYTES:  # a bound so a regression fails, not hangs
+            sent += 64_000
+            yield b"x" * 64_000
+
+    try:
+        client = fake_client(
+            [httpx.Response(200, headers={"content-type": "text/plain"}, content=endless())]
+        )
+        result = web.fetch("https://raw.githubusercontent.com/uc-cdis/fence/HEAD/big.txt", client)
+        assert len(result) <= len(web.BANNER.format(url="")) + 200 + web.MAX_BYTES
+        assert sent < 2 * web.MAX_BYTES, f"read {sent:,} bytes for a {web.MAX_BYTES:,} cap"
+    finally:
+        web.socket.getaddrinfo = original
+
+
 def main() -> None:
     original = web.socket.getaddrinfo
     try:
