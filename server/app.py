@@ -335,7 +335,10 @@ q.onkeydown = e => {
 const esc = s => s.replace(/[&<>"']/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const CITE = /\[([\w.-]+\/[\w.-]+)\/([^\]\s]+?)#L(\d+)-L(\d+)\]/g;
+// Every indexed repo is uc-cdis, so the org is optional in the marker and always
+// in the URL: small models drop it, and [fence/fence/x.py] must not become
+// github.com/fence/fence.
+const CITE = /\[(?:uc-cdis\/)?([\w.-]+)\/([^\]\s]+?)#L(\d+)-L(\d+)\]/g;
 
 // Everything below runs on already-escaped text, so no raw HTML can get through.
 function inline(s) {
@@ -346,7 +349,7 @@ function inline(s) {
     // CITE build the canonical one, or the bare-URL rule renders it twice.
     .replace(/\[([\w.-]+\/[^\]\s]+?#L\d+-L\d+)\]\(https?:[^)\s]+\)/g, '[$1]')
     .replace(CITE, (m, repo, path, a, b) =>
-      `<cite><a target="_blank" rel="noopener" href="https://github.com/${repo}/blob/HEAD/${path}#L${a}-L${b}">${path}:${a}</a></cite>`)
+      `<cite><a target="_blank" rel="noopener" href="https://github.com/uc-cdis/${repo}/blob/HEAD/${path}#L${a}-L${b}">${path}:${a}</a></cite>`)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
       '<a target="_blank" rel="noopener" href="$2">$1</a>')
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,

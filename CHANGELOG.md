@@ -86,6 +86,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A citation written without its org, `[fence/fence/x.py#L1-L5]`, linked to
+  `github.com/fence/fence/...`, a 404. The org is now optional in the marker
+  and always `uc-cdis` in the link.
+
 - **Security:** the answer renderer escaped `< > &` but not quotes, while
   interpolating model output into `href` attributes — repository content, which
   the model reads, could break out into an event handler and run script.
