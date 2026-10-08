@@ -191,11 +191,9 @@ def test_citation_without_the_org_still_links_to_uc_cdis() -> None:
 
 
 if __name__ == "__main__":
-    test_client_ip_ignores_what_the_caller_claims()
-    test_rate_limit_holds_and_eviction_spares_live_windows()
-    test_daily_cap_refuses()
-    test_page_carries_a_nonce_and_a_policy()
-    test_history_from_the_body_is_filtered()
-    test_renderer_cannot_break_out_of_an_attribute()
-    test_citation_without_the_org_still_links_to_uc_cdis()
+    # Every test_* function, not a hand-kept list: the list once left two of
+    # them, the /ask stream and the malformed-body checks, never running.
+    for name, fn in list(globals().items()):
+        if name.startswith("test_"):
+            fn()
     print("ok — client identity, rate limits, /ask frames, history filter, nonce, escaping")
