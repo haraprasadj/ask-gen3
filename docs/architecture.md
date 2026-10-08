@@ -195,7 +195,7 @@ where the design gets lazy:
   entry, the only one a caller cannot forge. Both counters live in process
   memory, so the real ceiling is roughly N instances x the cap; the spend limit
   on the OpenRouter key is the one ceiling concurrency cannot defeat.
-- Hard caps on question length (600 chars), billed tokens per question (180 k,
+- Hard caps on question length (2,000 chars), billed tokens per question (180 k,
   ~USD 0.05) and wall-clock per answer (120 s, and Cloud Run bills wall-clock).
 - No CDN or bot filtering in front today. If one is added, `client_ip()` must
   be told which header to trust, or the per-IP limit becomes meaningless.

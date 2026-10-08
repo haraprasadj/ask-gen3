@@ -59,6 +59,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   prompt limits. `usage.prompt_tokens` now reports the billed sum rather than
   the last call's prompt.
 - UI: the composer sits below the transcript, chat style.
+- UI: the question box is a growing multi-line field (Enter sends, Shift+Enter
+  for a newline), and a question may be 2,000 characters rather than 600.
 - The container runs as `nobody` rather than root.
 - GitHub Actions are pinned to commit SHAs instead of floating tags, and base
   images to digests for the same reason.

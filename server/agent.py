@@ -53,7 +53,7 @@ MAX_QUESTION_TOKENS = 180_000
 # it — measured, this is most of the per-round growth that spends the budget
 # above. Lowering it buys more rounds for the same money.
 MAX_TOOL_RESULT_TOKENS = 3_000
-MAX_QUESTION_CHARS = 600
+MAX_QUESTION_CHARS = 2_000  # ~500 tokens: three max-length turns still fit MAX_HISTORY_TOKENS
 MAX_HISTORY_TOKENS = 6_000  # of the prompt budget; the rest is for retrieval
 # No tokenizer is loaded: the provider varies, and a wrong one is worse than an
 # honest estimate. Four characters per token is the usual ratio for English

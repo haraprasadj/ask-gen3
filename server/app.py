@@ -220,9 +220,11 @@ PAGE = r"""<!doctype html>
   form { display: flex; gap: .5rem; background: var(--panel); padding: .45rem;
          border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
   form:focus-within { border-color: var(--brand); }
-  input { flex: 1; min-width: 0; padding: .6rem .75rem; font: inherit; color: var(--fg);
-          background: none; border: 0; }
-  input:focus { outline: none; }
+  textarea { flex: 1; min-width: 0; padding: .6rem .75rem; font: inherit; color: var(--fg);
+             background: none; border: 0; resize: none; field-sizing: content;
+             max-height: 17rem; overflow-y: auto; }
+  textarea:focus { outline: none; }
+  form button { align-self: flex-end; }
   button { padding: .6rem 1.25rem; font: inherit; font-weight: 550; border-radius: 10px;
            cursor: pointer; border: 1px solid transparent; background: var(--accent);
            color: #fff; transition: opacity .15s; }
@@ -294,8 +296,8 @@ with citations to the exact lines.</p>
 <div id="activity"></div>
 <div class="composer">
   <form id="f">
-    <input id="q" name="q" placeholder="How does fence issue a refresh token?"
-           autocomplete="off" maxlength="600" autofocus>
+    <textarea id="q" name="q" rows="1" placeholder="How does fence issue a refresh token?"
+              autocomplete="off" maxlength="2000" autofocus></textarea>
     <button id="go">Ask</button>
   </form>
   <ul class="examples" id="examples">
@@ -320,6 +322,12 @@ const examples = document.getElementById('examples');
 
 document.querySelectorAll('.examples button').forEach(b =>
   b.onclick = () => { q.value = b.textContent; f.requestSubmit(); });
+
+// Enter sends, Shift+Enter is a newline. isComposing keeps an IME's confirming
+// Enter from sending a half-typed question.
+q.onkeydown = e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); }
+};
 
 // Quotes included: inline() puts this text inside href="...", and a browser
 // treats href="x"onclick="y" as two attributes, so an unescaped quote is script
