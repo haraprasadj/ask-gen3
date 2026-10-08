@@ -8,21 +8,21 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Every `uv run` in the justfile fails rather than re-locks if uv.lock is
+    # stale, which is what `uv sync --locked` used to guarantee here.
+    env: { UV_LOCKED: "1" }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
-      # Ubuntu's CPython ships with loadable SQLite extensions enabled, which
-      # sqlite-vec needs; macOS runners and uv's managed builds do not.
-      - run: uv sync --locked
-      - run: uvx ruff check .
-      - run: uv run python -m ingest.test_schema
-      - run: uv run python -m ingest.test_chunk
-      - run: uv run python -m server.test_retrieve
-      - run: uv run python -m server.test_agent
+      # just from Ubuntu's signed archive: no third-party action or PyPI
+      # repackaging joins the supply chain for a task runner.
+      - run: sudo apt-get install -y --no-install-recommends just
+      # The recipes, not a copy of them. A hand-kept list here once dropped
+      # server.test_web, the SSRF checks, without anything going red.
       # Runners ship node, which the renderer escaping check needs.
-      - run: uv run python -m server.test_app
+      - run: just check
 
   # Lint is not a security check. These two are, and they run on every PR
   # rather than waiting for Dependabot's monthly pass.
@@ -34,18 +34,8 @@ jobs:
           fetch-depth: 0   # gitleaks scans history, not just the working tree
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
-      # Known CVEs in the locked dependency set. `--locked` first, so the
-      # environment audited is exactly uv.lock and nothing resolved fresh.
-      - name: Dependency audit
-        run: |
-          uv sync --locked
-          uv run --with pip-audit pip-audit --strict
-
-      # The upstream image rather than a marketplace action: no license key for
-      # organisations, no third-party action in the supply chain, digest-pinned
-      # like everything else here.
-      - name: Secret scan
-        run: |
-          docker run --rm -v "$PWD:/repo" \
-            ghcr.io/gitleaks/gitleaks:v8.28.0@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854 \
-            detect --source=/repo --redact --verbose
+      - run: sudo apt-get install -y --no-install-recommends just
+      # pip-audit over uv.lock and gitleaks over the history, as `just audit`
+      # runs them locally.
+      - run: just audit
+        env: { UV_LOCKED: "1" }

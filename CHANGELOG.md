@@ -77,6 +77,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a planned Cloudflare, answer cache and request-logging setup that was
   never built.
 
+- CI runs `just check` and `just audit` instead of its own copy of their
+  commands. The copy had drifted: `server.test_web`, the `fetch_url` SSRF
+  checks, and the evals file check never ran in CI.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
