@@ -6,4 +6,5 @@
 
 - [ ] `just check` passes locally
 - [ ] Behaviour change is covered by a self-check in the relevant `test_*.py`
+- [ ] A user-visible change has a fragment in `changelog.d/` (`just fragment`)
 - [ ] A decision worth remembering is written down as an ADR in `docs/adr/`
