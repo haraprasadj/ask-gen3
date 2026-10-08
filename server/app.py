@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import threading
 import time
 import traceback
 
@@ -29,6 +30,10 @@ app = FastAPI(title="ask-gen3", docs_url=None, redoc_url=None)
 # shared store only if that backstop starts being reached.
 _buckets: dict[str, list[float]] = {}
 _day = {"date": "", "count": 0}
+# The /ask stream is a sync generator, so Starlette runs it on a thread pool and
+# concurrent requests reach allowed() together. Without this, the daily count
+# undercounts and the eviction loop can see the dict change size mid-iteration.
+_lock = threading.Lock()
 
 
 def client_ip(request: Request) -> str:
@@ -45,25 +50,26 @@ def client_ip(request: Request) -> str:
 
 def allowed(ip: str) -> str | None:
     """Returns a refusal reason, or None to proceed."""
-    today = time.strftime("%Y-%m-%d")
-    if _day["date"] != today:
-        _day.update(date=today, count=0)
-    if _day["count"] >= DAILY_QUESTION_CAP:
-        return "This instance has hit its daily budget. Try again tomorrow."
-    now = time.time()
-    hits = [t for t in _buckets.get(ip, []) if now - t < 3600]
-    if len(hits) >= RATE_LIMIT:
-        return f"Rate limit: {RATE_LIMIT} questions per hour. Try again later."
-    hits.append(now)
-    _buckets[ip] = hits
-    if len(_buckets) > 10_000:
-        # An unbounded dict is the other way to lose a machine. Drop only the
-        # windows that have expired: clearing all of them would let anyone who
-        # can mint 10k keys reset every real caller's limit too.
-        for key in [k for k, v in _buckets.items() if not v or now - v[-1] >= 3600]:
-            del _buckets[key]
-    _day["count"] += 1
-    return None
+    with _lock:
+        today = time.strftime("%Y-%m-%d")
+        if _day["date"] != today:
+            _day.update(date=today, count=0)
+        if _day["count"] >= DAILY_QUESTION_CAP:
+            return "This instance has hit its daily budget. Try again tomorrow."
+        now = time.time()
+        hits = [t for t in _buckets.get(ip, []) if now - t < 3600]
+        if len(hits) >= RATE_LIMIT:
+            return f"Rate limit: {RATE_LIMIT} questions per hour. Try again later."
+        hits.append(now)
+        _buckets[ip] = hits
+        if len(_buckets) > 10_000:
+            # An unbounded dict is the other way to lose a machine. Drop only the
+            # windows that have expired: clearing all of them would let anyone who
+            # can mint 10k keys reset every real caller's limit too.
+            for key in [k for k, v in _buckets.items() if not v or now - v[-1] >= 3600]:
+                del _buckets[key]
+        _day["count"] += 1
+        return None
 
 
 def sse(event: str, payload: dict) -> str:
@@ -151,6 +157,15 @@ async def ask(request: Request) -> StreamingResponse:
     )
 
 
+# Who sees the question, named per provider: a local Ollama run must not tell
+# its user the question went to a third party, and vice versa.
+RECIPIENTS = {
+    "openrouter": '<a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>'
+    " and the model it routes to",
+    "ollama": "the Ollama server this instance is configured with",
+}
+
+
 @app.get("/")
 def home() -> HTMLResponse:
     try:
@@ -164,7 +179,12 @@ def home() -> HTMLResponse:
     # Second layer under the escaping in render(): even a renderer bug cannot
     # run injected script without this nonce, which changes every response.
     nonce = secrets.token_urlsafe(16)
-    page = PAGE.replace("{{logo}}", LOGO).replace("{{footer}}", footer).replace("{{nonce}}", nonce)
+    page = (
+        PAGE.replace("{{logo}}", LOGO)
+        .replace("{{footer}}", footer)
+        .replace("{{recipient}}", RECIPIENTS.get(agent.PROVIDER, "a model provider"))
+        .replace("{{nonce}}", nonce)
+    )
     return HTMLResponse(
         page,
         headers={
@@ -313,8 +333,7 @@ with citations to the exact lines.</p>
 </div>
 <footer>{{footer}} &middot; answers can be wrong &mdash; follow the citations
 &middot; <a href="https://github.com/uc-cdis">uc-cdis</a><br>
-Your question is sent to <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>
-and the model it routes to. Don't put anything confidential in it.<br>
+Your question is sent to {{recipient}}. Don't put anything confidential in it.<br>
 A community project. Not affiliated with or endorsed by the Gen3 team or the
 Center for Translational Data Science; the Gen3 logo is used to identify the
 software this tool indexes.</footer>

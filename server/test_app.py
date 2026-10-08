@@ -72,6 +72,17 @@ def test_page_carries_a_nonce_and_a_policy() -> None:
     assert A.home().headers["content-security-policy"] != policy, "nonce is not per-response"
 
 
+def test_footer_names_the_live_provider() -> None:
+    live = A.agent.PROVIDER
+    try:
+        A.agent.PROVIDER = "ollama"
+        assert "openrouter.ai" not in A.home().body.decode()
+        A.agent.PROVIDER = "openrouter"
+        assert "openrouter.ai" in A.home().body.decode()
+    finally:
+        A.agent.PROVIDER = live
+
+
 def test_history_from_the_body_is_filtered() -> None:
     """The POST body is caller-controlled; only user/assistant strings pass."""
     assert A.parse_history("not a list") == []

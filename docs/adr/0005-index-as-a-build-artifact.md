@@ -6,7 +6,8 @@ Date: 2026-09-12
 
 Accepted. Delivery mechanism amended by [ADR-0006](0006-lambda-container-deployment.md):
 the index ships inside the Lambda container image rather than as a release asset
-fetched at boot. The build pipeline and weekly cadence below are unchanged.
+fetched at boot. The weekly cadence is amended by
+[ADR-0011](0011-index-rebuilt-on-demand.md): builds run on demand.
 
 ## Context
 
