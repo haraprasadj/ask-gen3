@@ -19,5 +19,4 @@ PR comment.
 Found a vulnerability? Do not open an issue — [SECURITY.md](SECURITY.md) has the
 private reporting route.
 
-Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md).
 Contributions are accepted under the Apache License 2.0.

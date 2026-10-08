@@ -34,8 +34,7 @@
 - `Strict-Transport-Security` on the page; Cloud Run does not send it.
 - Footer and README disclosure that questions are sent to OpenRouter, and a
   `SECURITY.md` section stating what is kept and for how long.
-- Code of Conduct (Contributor Covenant 2.1), `CODEOWNERS`, and issue and pull
-  request templates.
+- `CODEOWNERS`, and issue and pull request templates.
 
 ### Changed
 
