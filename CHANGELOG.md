@@ -91,6 +91,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The `deploy` workflow could not fetch `index.db`: its token lacked
+  `actions: read`, so listing the index workflow's runs failed with HTTP 403.
 - **Security:** `fetch_url` read a response in full before trimming it to
   300 kB, so the cap bounded what reached the model but not memory: one fetch
   of a very large allowlisted file could exhaust the instance. The body is now
