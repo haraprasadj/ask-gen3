@@ -82,6 +82,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
   3.13, whose current builds load SQLite extensions. It works on Linux too.
 
+- `requires-python` is `>=3.13`, the only version CI, the image and
+  `.python-version` use, rather than an untested `>=3.11`.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
@@ -91,6 +94,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The `grep` tool returned nothing for a pattern containing `"`, such as a
+  quoted config key: the quote broke the full-text query, and the error path
+  skipped the substring fallback. Quotes are now escaped, and a query error
+  still falls back.
 - A full index build copied the README and docs of every uc-cdis repository,
   including six with no licence, into an artifact that is published and baked
   into the served image. Repositories without an open licence on GitHub are now
