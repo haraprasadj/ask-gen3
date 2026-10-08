@@ -86,6 +86,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Security:** an unhandled error in `/ask` logged the exception's message,
+  which can carry the question or an upstream response body, while SECURITY.md
+  promised only its type. It now logs the type and the line that raised it.
 - `server/test_app.py` never ran two of its checks, the `/ask` stream framing
   and the malformed-body cases: its hand-kept call list had missed them. It now
   runs every `test_*` function, as the other self-checks do.
