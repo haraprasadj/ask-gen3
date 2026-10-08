@@ -21,7 +21,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   re-checking and a private-address refusal (ADR-0009).
 - UI: Gen3 logo, markdown rendering for answers (headings, tables, lists, code,
   citation chips) and a stop control on the streaming request.
-- Lambda container image, CI workflow, and a weekly index-build workflow.
+- Lambda container image, CI workflow, and an index-build workflow run by hand.
 - Deployment: `deploy/bootstrap.sh` for the one-time AWS resources and a
   `deploy` workflow that ships each index build via GitHub OIDC.
 - Cloud Run deployment (ADR-0008) replacing the Lambda path.
