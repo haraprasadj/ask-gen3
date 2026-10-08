@@ -193,7 +193,9 @@ def grep(
 ) -> list[Hit]:
     """Exact identifier lookup. FTS5 tokenises on '_' boundaries the way code
     needs (schema.sql), so `presigned_url` matches as one token."""
-    con, params = db(), [f'"{pattern.strip()}"']
+    # One FTS5 phrase. A quote inside it is doubled, which is FTS5's escape;
+    # unescaped, a stray `"` is a syntax error and the search finds nothing.
+    con, params = db(), ['"' + pattern.strip().replace('"', '""') + '"']
     sql = "select c.id from chunks_fts f join chunks c on c.id = f.rowid where chunks_fts match ?"
     if repo:
         sql += " and c.repo like ?"
@@ -203,7 +205,7 @@ def grep(
     try:
         ids = [r[0] for r in con.execute(sql, params)]
     except sqlite3.OperationalError:
-        return []
+        ids = []  # still worth the substring scan below
     hits = _load(ids)
     # ponytail: unindexed full scan on every FTS miss, ~200 ms at this corpus
     # size. The agent's token budget bounds how many run per question, but not

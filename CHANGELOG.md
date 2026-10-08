@@ -91,6 +91,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The `grep` tool returned nothing for a pattern containing `"`, such as a
+  quoted config key: the quote broke the full-text query, and the error path
+  skipped the substring fallback. Quotes are now escaped, and a query error
+  still falls back.
 - Citation links pointed at each repository's default branch, so once a cited
   file changed after indexing the highlighted lines no longer matched what the
   answer read. A finished answer now links to the indexed commit.
