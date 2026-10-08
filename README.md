@@ -74,6 +74,7 @@ its own base URL, model and key, so switching between them cannot half-apply:
 | `RATE_LIMIT_PER_HOUR` | `20` | per-IP question limit |
 | `DAILY_QUESTION_CAP` | `2000` | per-instance daily ceiling |
 | `REQUEST_TIMEOUT_SECONDS` | `120` | wall-clock ceiling on one answer |
+| `PUBLIC_URL` | this repository | sent to OpenRouter as `HTTP-Referer`, which it uses to attribute traffic; set it to your deployment's address |
 
 `just setup` creates a gitignored `.env` from `.env.example`; every recipe
 loads it. Set a hard spend limit on the OpenRouter key as well — it is the only

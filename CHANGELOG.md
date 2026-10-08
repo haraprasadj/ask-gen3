@@ -86,6 +86,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Requests to OpenRouter sent `HTTP-Referer: https://github.com/uc-cdis` by
+  default, attributing this project's traffic to the Gen3 organisation. The
+  default is now this repository, and `PUBLIC_URL` is documented.
 - A citation written without its org, `[fence/fence/x.py#L1-L5]`, linked to
   `github.com/fence/fence/...`, a 404. The org is now optional in the marker
   and always `uc-cdis` in the link.
