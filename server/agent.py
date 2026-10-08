@@ -276,7 +276,9 @@ def _client() -> OpenAI:
         api_key=API_KEY,
         timeout=60.0,
         default_headers={
-            "HTTP-Referer": os.environ.get("PUBLIC_URL", "https://github.com/uc-cdis"),
+            # OpenRouter attributes traffic to this URL. Not uc-cdis: this
+            # project is not theirs, and the header would say otherwise.
+            "HTTP-Referer": os.environ.get("PUBLIC_URL", "https://github.com/haraprasadj/ask-gen3"),
             "X-Title": "ask-gen3",
         },
     )

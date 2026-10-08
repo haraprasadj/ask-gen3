@@ -15,18 +15,19 @@ it, embeddings are local, and only generation costs money.
 
 ## Install
 
-Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/),
-[just](https://github.com/casey/just#installation), and a Python built with
-loadable SQLite extensions — retrieval needs `sqlite-vec`. Several CPython
-distributions on macOS, including uv's own managed builds, are compiled without
-it and fail with `'sqlite3.Connection' object has no attribute
-'enable_load_extension'`. Homebrew's Python works:
+Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/)
+and [just](https://github.com/casey/just#installation). uv fetches Python 3.13
+itself.
 
 ```sh
-brew install python@3.13
 just setup
 just test
 ```
+
+Retrieval loads the `sqlite-vec` extension, so Python must allow SQLite
+extensions. Current uv-managed builds do; older ones fail with
+`'sqlite3.Connection' object has no attribute 'enable_load_extension'`. If you
+see that, run `uv self update`, then `uv python install --reinstall 3.13`.
 
 ## Quickstart
 
@@ -74,6 +75,7 @@ its own base URL, model and key, so switching between them cannot half-apply:
 | `RATE_LIMIT_PER_HOUR` | `20` | per-IP question limit |
 | `DAILY_QUESTION_CAP` | `2000` | per-instance daily ceiling |
 | `REQUEST_TIMEOUT_SECONDS` | `120` | wall-clock ceiling on one answer |
+| `PUBLIC_URL` | this repository | sent to OpenRouter as `HTTP-Referer`, which it uses to attribute traffic; set it to your deployment's address |
 
 `just setup` creates a gitignored `.env` from `.env.example`; every recipe
 loads it. Set a hard spend limit on the OpenRouter key as well — it is the only

@@ -52,20 +52,30 @@ def main() -> None:
             errors.append(f"{item['id']}: expect_refusal but has expectations")
 
     # Every cited path must actually be in the index, or the answer can never match.
-    db = sqlite3.connect(f"file:{INDEX}?mode=ro", uri=True)
-    indexed = {
-        f"{repo}/{path}" for repo, path in db.execute("select distinct repo, path from chunks")
-    }
-    db.close()
+    # Only repos the index holds can be judged: a fresh clone has no index, and
+    # `just index-dev` builds two repos. A missing path in an indexed repo is an
+    # error; a citation into a repo that was not built is skipped and counted.
+    repos, indexed = set(), set()
+    if INDEX.exists():
+        db = sqlite3.connect(f"file:{INDEX}?mode=ro", uri=True)
+        repos = {r for (r,) in db.execute("select repo from repos")}
+        indexed = {f"{r}/{p}" for r, p in db.execute("select distinct repo, path from chunks")}
+        db.close()
+    checked = skipped = 0
     for item in items:
         for cite in item.get("should_cite", []):
-            if cite not in indexed:
+            if "/".join(cite.split("/")[:2]) not in repos:
+                skipped += 1
+            elif cite not in indexed:
                 errors.append(f"{item['id']}: {cite} is not in the index")
+            else:
+                checked += 1
 
     if errors:
         print("\n".join(errors))
         sys.exit(f"\n{len(errors)} problem(s) in {len(items)} items")
-    print(f"ok: {len(items)} items, {sum(len(i['should_cite']) for i in items)} citations resolve")
+    note = f", {skipped} skipped (repo not in {INDEX.name})" if skipped else ""
+    print(f"ok: {len(items)} items, {checked} citations resolve{note}")
 
 
 if __name__ == "__main__":
