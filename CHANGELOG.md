@@ -86,6 +86,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Security:** `fetch_url` read a response in full before trimming it to
+  300 kB, so the cap bounded what reached the model but not memory: one fetch
+  of a very large allowlisted file could exhaust the instance. The body is now
+  streamed and reading stops at the cap.
 - A citation written without its org, `[fence/fence/x.py#L1-L5]`, linked to
   `github.com/fence/fence/...`, a 404. The org is now optional in the marker
   and always `uc-cdis` in the link.
