@@ -91,6 +91,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A full index build copied the README and docs of every uc-cdis repository,
+  including six with no licence, into an artifact that is published and baked
+  into the served image. Repositories without an open licence on GitHub are now
+  skipped, and each indexed repository's SPDX licence is recorded.
 - Citation links pointed at each repository's default branch, so once a cited
   file changed after indexing the highlighted lines no longer matched what the
   answer read. A finished answer now links to the indexed commit.
