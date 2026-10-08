@@ -146,7 +146,7 @@ no step count — a cheap question gets as many rounds as it needs, and what a
 round costs is what limits them. When the budget will not fit another round the
 final call is offered no tools, so it has to answer; if a single round overruns
 the budget outright the loop stops and reports the count. Every claim in the answer carries a
-`repo/path#Lstart-Lend` citation linking to GitHub at the indexed commit; the
+`repo/path#Lstart-Lend` citation linking to the file on GitHub's default branch; the
 system prompt requires the model to say it does not know rather than answer
 from parametric memory. Tokens stream to the browser over SSE.
 
