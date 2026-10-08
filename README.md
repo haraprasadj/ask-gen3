@@ -112,6 +112,6 @@ Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Indexed
 content remains under the licences of the repositories it came from.
 
 Not affiliated with, endorsed by, or sponsored by the Gen3 project, the
-University of Chicago or the Center for Translational Data Science. "Gen3" and
-the Gen3 logo belong to their owners and are used here only to identify the
-software this tool indexes.
+University of Chicago or the Center for Translational Data Science. "Gen3"
+belongs to its owners and is used here only to identify the software this tool
+indexes.

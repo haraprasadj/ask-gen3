@@ -184,8 +184,7 @@ def home() -> HTMLResponse:
     # run injected script without this nonce, which changes every response.
     nonce = secrets.token_urlsafe(16)
     page = (
-        PAGE.replace("{{logo}}", LOGO)
-        .replace("{{footer}}", footer)
+        PAGE.replace("{{footer}}", footer)
         .replace("{{recipient}}", recipient(agent.BASE_URL))
         .replace("{{nonce}}", nonce)
     )
@@ -203,18 +202,6 @@ def home() -> HTMLResponse:
         },
     )
 
-
-# The Gen3 wordmark, from uc-cdis/data-portal src/img/icons/gen3.svg (Apache-2.0).
-# Inlined so the page is still one request; letters use currentColor so the mark
-# works on both themes.
-LOGO = r"""<svg class="logo" viewBox="0 0 195 89" role="img" aria-label="Gen3">
-<defs><polygon id="lp" points="0 0.0686 41.8857 0.0686 41.8857 69.0836 0 69.0836"/>
-<mask id="lm" fill="#fff"><use xlink:href="#lp" xmlns:xlink="http://www.w3.org/1999/xlink"/></mask></defs>
-<path fill="#3283c8" d="m 194.7646,61.4042 c 0,15.197 -12.205,27.527 -27.396,27.527 h -0.125 c -15.2,0 -27.405,-12.33 -27.405,-27.527 0,-2.242 1.867,-4.107 4.108,-4.107 2.242,0 4.115,1.865 4.115,4.107 0,10.715 8.592,19.305 19.307,19.305 10.584,0 19.181,-8.59 19.181,-19.305 0,-10.215 -9.471,-19.303 -20.428,-19.303 -1.498,0 -2.994,-0.873 -3.613,-2.246 -0.752,-1.367 -0.627,-2.986 0.252,-4.232 l 20.049,-27.403 h -38.863 c -2.241,0 -4.108,-1.869 -4.108,-4.113 0,-2.24 1.867,-4.107 4.108,-4.107 h 46.836 c 1.498,0 2.986,0.871 3.613,2.242 0.744,1.367 0.619,2.986 -0.25,4.232 l -20.68,28.399 c 12.088,3.117 21.299,14.076 21.299,26.531"/>
-<path fill="currentColor" mask="url(#lm)" transform="translate(0,-0.0684)" d="m 41.8857,37.8886 v 26.189 c 0,1.702 -1.422,3.12 -3.123,3.12 -1.797,0 -3.119,-1.418 -3.119,-3.12 v -1.043 c -3.779,3.688 -8.981,6.049 -14.749,6.049 -11.441,0 -20.895,-9.357 -20.895,-20.892 v -27.133 c 0,-11.535 9.454,-20.99 20.895,-20.99 11.534,0 20.991,9.455 20.991,20.99 0,1.701 -1.422,3.119 -3.123,3.119 -1.797,0 -3.119,-1.418 -3.119,-3.119 0,-8.133 -6.619,-14.75 -14.749,-14.75 -8.037,0 -14.655,6.617 -14.655,14.75 v 27.133 c 0,8.035 6.618,14.654 14.655,14.654 8.13,0 14.749,-6.619 14.749,-14.654 v -7.184 h -13.803 c -1.701,0 -3.119,-1.418 -3.119,-3.119 0,-1.703 1.418,-3.123 3.119,-3.123 h 16.922 c 1.701,0 3.123,1.42 3.123,3.123"/>
-<path fill="currentColor" d="m 57.4873,37.3456 v 23.543 h 22.129 c 1.697,0 3.117,1.418 3.117,3.121 0,1.701 -1.42,3.119 -3.117,3.119 h -25.25 c -1.795,0 -3.119,-1.418 -3.119,-3.119 V 4.5366 c 0,-1.701 1.324,-3.117 3.119,-3.117 h 25.25 c 1.697,0 3.117,1.416 3.117,3.117 0,1.704 -1.42,3.122 -3.117,3.122 h -22.129 v 23.447 h 22.129 c 1.697,0 3.117,1.42 3.117,3.121 0,1.795 -1.42,3.119 -3.117,3.119 z"/>
-<path fill="currentColor" d="m 122.5401,65.5331 -24.016,-48.031 v 46.613 c 0,1.793 -1.418,3.119 -3.119,3.119 -1.703,0 -3.121,-1.326 -3.121,-3.119 v -59.85 c 0,-1.418 0.945,-2.74 2.363,-3.025 1.42,-0.379 2.932,0.285 3.498,1.607 l 24.11,48.125 V 4.2651 c 0,-1.703 1.324,-3.121 3.121,-3.121 1.699,0 3.117,1.418 3.117,3.121 v 59.85 c 0,1.512 -1.039,2.74 -2.457,3.119 h -0.66 c -1.227,0 -2.268,-0.568 -2.836,-1.701"/>
-</svg>"""
 
 PAGE = r"""<!doctype html>
 <html lang="en">
@@ -237,11 +224,9 @@ PAGE = r"""<!doctype html>
          background: var(--bg); color: var(--fg); font-size: 16px; line-height: 1.7;
          font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
          -webkit-font-smoothing: antialiased; }
-  header { display: flex; align-items: center; gap: .85rem; margin-bottom: .6rem; }
-  .logo { height: 30px; width: auto; display: block; color: var(--fg); }
-  header .bar { width: 1px; height: 26px; background: var(--line); }
-  h1 { font-size: 1.05rem; font-weight: 600; margin: 0; letter-spacing: .02em;
-       text-transform: lowercase; color: var(--dim); }
+  header { margin-bottom: .6rem; }
+  h1 { font-size: 1.25rem; font-weight: 600; margin: 0; letter-spacing: .02em;
+       text-transform: lowercase; }
   p.sub { color: var(--dim); margin: 0 0 1.75rem; font-size: .95rem; max-width: 34rem; }
   .composer { position: sticky; bottom: 0; background: var(--bg); padding: .9rem 0 1rem;
               margin-top: 2rem; }
@@ -314,8 +299,6 @@ PAGE = r"""<!doctype html>
   @media (prefers-color-scheme: dark) { .err { color: #f97066; } }
 </style>
 <header>
-  {{logo}}
-  <span class="bar"></span>
   <h1>ask gen3</h1>
 </header>
 <p class="sub">Questions about the Gen3 platform, answered from the uc-cdis source
@@ -339,8 +322,7 @@ with citations to the exact lines.</p>
 &middot; <a href="https://github.com/uc-cdis">uc-cdis</a><br>
 Your question is sent to {{recipient}}. Don't put anything confidential in it.<br>
 A community project. Not affiliated with or endorsed by the Gen3 team or the
-Center for Translational Data Science; the Gen3 logo is used to identify the
-software this tool indexes.</footer>
+Center for Translational Data Science.</footer>
 <script nonce="{{nonce}}">
 const f = document.getElementById('f'), q = document.getElementById('q');
 const out = document.getElementById('out'), act = document.getElementById('activity');
