@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read          # find and download index.db from the index run
   id-token: write        # OIDC — no service account key anywhere (SECURITY.md)
   attestations: write    # build provenance for the pushed image
 
