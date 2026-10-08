@@ -1,6 +1,7 @@
 # Corpus selection (docs/architecture.md#corpus-selection).
 # Tier 1 and 2 are curated. Tier 3 is every other non-archived uc-cdis repo,
 # resolved from the GitHub API at build time, indexed README + docs/ only.
+# Any repo, curated or not, without an open licence on GitHub is skipped.
 
 org: uc-cdis
 
