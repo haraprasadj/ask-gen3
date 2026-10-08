@@ -91,9 +91,19 @@ NUM=$(gcloud projects describe ask-gen3 --format='value(projectNumber)')
 
 gcloud iam service-accounts create ask-gen3-deploy
 SA=ask-gen3-deploy@ask-gen3.iam.gserviceaccount.com
-for role in run.admin cloudbuild.builds.editor artifactregistry.writer logging.viewer; do
+# serviceUsageConsumer and storage.bucketViewer are for `gcloud builds submit`.
+# Before uploading the source, it fetches the default bucket and lists the
+# project's buckets to check that it owns that one, a guard against someone
+# else squatting the name. Without them, the upload fails with "forbidden from
+# accessing the bucket". bucketViewer reads bucket metadata only, no objects.
+for role in run.admin cloudbuild.builds.editor artifactregistry.writer logging.viewer \
+    serviceusage.serviceUsageConsumer storage.bucketViewer; do
   gcloud projects add-iam-policy-binding ask-gen3 --member="serviceAccount:$SA" --role="roles/$role"
 done
+# Writing the source archive. The bucket exists once Cloud Build has run once,
+# which step 3 does.
+gcloud storage buckets add-iam-policy-binding gs://ask-gen3_cloudbuild \
+  --member="serviceAccount:$SA" --role=roles/storage.objectAdmin
 # Deploying a revision means acting as its runtime service account.
 gcloud iam service-accounts add-iam-policy-binding "$NUM-compute@developer.gserviceaccount.com" \
   --member="serviceAccount:$SA" --role=roles/iam.serviceAccountUser
@@ -183,3 +193,4 @@ concurrency, a bug, or an abusive client cannot exceed.
 | Answers arrive all at once, not streamed | A proxy is buffering. Cloud Run itself does not; the app sets `X-Accel-Buffering: no` |
 | `/health` reports `index unavailable` | `index.db` was not baked into the image |
 | First request takes 5 s | Cold start, expected. `--min-instances 1` fixes it and costs money at idle |
+| CI deploy: `forbidden from accessing the bucket [ask-gen3_cloudbuild]` | The deploy service account is missing `serviceusage.serviceUsageConsumer` or `storage.bucketViewer` on the project (step 4). `just deploy` works regardless, because it runs as you |

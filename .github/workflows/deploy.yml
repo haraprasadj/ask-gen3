@@ -54,8 +54,21 @@ jobs:
         id: build
         run: |
           IMAGE="$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app:${{ github.sha }}"
-          gcloud builds submit --tag "$IMAGE" \
-            --region "$REGION" --project "${{ vars.GCP_PROJECT }}"
+          # Async, then polled: streaming the logs reads Cloud Build's default
+          # logs bucket, which needs project-wide Viewer. The deploy account
+          # does not have that, and gets no broader role just to echo logs here.
+          # The console link gcloud prints has them.
+          BUILD=$(gcloud builds submit --tag "$IMAGE" --async --format='value(id)' \
+            --region "$REGION" --project "${{ vars.GCP_PROJECT }}")
+          while :; do
+            STATUS=$(gcloud builds describe "$BUILD" --format='value(status)' \
+              --region "$REGION" --project "${{ vars.GCP_PROJECT }}")
+            case "$STATUS" in
+              QUEUED|PENDING|WORKING) sleep 10 ;;
+              SUCCESS) break ;;
+              *) echo "::error::Cloud Build $BUILD finished $STATUS"; exit 1 ;;
+            esac
+          done
           # A tag is what we pushed; a digest is what actually runs. Everything
           # downstream — scan, SBOM, attestation — names the digest.
           DIGEST=$(gcloud artifacts docker images describe "$IMAGE" \
