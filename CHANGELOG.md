@@ -77,6 +77,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a planned Cloudflare, answer cache and request-logging setup that was
   never built.
 
+- CI runs `just check` and `just audit` instead of its own copy of their
+  commands. The copy had drifted: `server.test_web`, the `fetch_url` SSRF
+  checks, and the evals file check never ran in CI.
+- `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
+  3.13, whose current builds load SQLite extensions. It works on Linux too.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
@@ -86,6 +92,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Security:** `fetch_url` read a response in full before trimming it to
+  300 kB, so the cap bounded what reached the model but not memory: one fetch
+  of a very large allowlisted file could exhaust the instance. The body is now
+  streamed and reading stops at the cap.
+- `just test` crashed on a fresh clone: `evals/check.py` opened `index.db`
+  unconditionally. Citations are now checked only for repositories the index
+  holds, and the rest are counted as skipped, so it passes with no index, the
+  two-repo `just index-dev` build, or the full one.
+- Requests to OpenRouter sent `HTTP-Referer: https://github.com/uc-cdis` by
+  default, attributing this project's traffic to the Gen3 organisation. The
+  default is now this repository, and `PUBLIC_URL` is documented.
 - `server/test_app.py` never ran two of its checks, the `/ask` stream framing
   and the malformed-body cases: its hand-kept call list had missed them. It now
   runs every `test_*` function, as the other self-checks do.
