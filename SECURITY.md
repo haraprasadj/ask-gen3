@@ -14,13 +14,13 @@ either ephemeral or federated.
 
 | Credential | Where it lives | Notes |
 |---|---|---|
-| `OPENROUTER_API_KEY` | local: `.env`, gitignored — production: Google Secret Manager, mounted into the Cloud Run revision at start | the only standing secret |
+| `HOSTED_INFERENCE_API_KEY` | local: `.env`, gitignored — production: Google Secret Manager, mounted into the Cloud Run revision at start | the only standing secret |
 | GitHub API token (index build) | not stored — the workflow uses the automatic `github.token` | scoped to one run, expires with it |
 | GCP deploy credentials | not stored — GitHub Actions uses Workload Identity Federation | no service account key in repository secrets |
 | Hugging Face token | not needed — weights are baked into the image and `HF_HUB_OFFLINE=1` is set | |
 | Local model access | not needed — Ollama takes no key | |
 
-The OpenRouter key is stored in Secret Manager and mounted as an environment
+The hosted key, an OpenRouter key by default, is stored in Secret Manager and mounted as an environment
 variable in the Cloud Run revision, rather than set as a plain environment
 variable on the service. A plain variable is readable by anyone who can describe
 the service; a secret needs `secretmanager.secretAccessor`, granted only to the
@@ -33,8 +33,9 @@ pins `:latest` at start, so a running revision keeps the value it booted with.
 
 ## What leaves this system, and what is kept
 
-Your question is sent to OpenRouter, which routes it to the model named by
-`OPENROUTER_MODEL` — a third party, under their terms, not ours. The page says so in the
+Your question is sent to the hosted endpoint — OpenRouter by default, which
+routes it to the model named by `HOSTED_INFERENCE_MODEL` — a third party, under
+their terms, not ours. The page says so in the
 footer. Don't put anything confidential in a question.
 
 What this application keeps:

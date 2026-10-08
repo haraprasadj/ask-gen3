@@ -1,5 +1,5 @@
-# .env holds every provider setting; a recipe chooses only which provider is
-# live. Note this also puts OPENROUTER_API_KEY in every recipe's environment,
+# .env holds both inference slots; a recipe chooses only which one is live.
+# Note this also puts HOSTED_INFERENCE_API_KEY in every recipe's environment,
 # not only the two that need it.
 set dotenv-load := true
 
@@ -14,7 +14,7 @@ default:
 # Install dependencies, on the Python in .python-version (uv fetches it).
 setup:
     uv sync
-    @test -f .env || (cp .env.example .env && echo "created .env — add your OPENROUTER_API_KEY")
+    @test -f .env || (cp .env.example .env && echo "created .env — add your HOSTED_INFERENCE_API_KEY")
 
 # Run every self-check.
 test:
@@ -61,16 +61,16 @@ index args="":
 index-dev:
     uv run python -m ingest.build --only indexd,dictionaryutils --out index.db
 
-# Serve locally against Ollama: OLLAMA_* in .env. Needs `ollama serve` and a
+# Serve locally, by default against Ollama: LOCAL_INFERENCE_* in .env. Needs `ollama serve` and a
 # tool-capable tag — and `ollama show <tag>` is the only honest source for how
 # big that tag is, the name is not.
 run:
-    PROVIDER=ollama uv run uvicorn server.app:app --reload --port 8000
+    PROVIDER=local uv run uvicorn server.app:app --reload --port 8000
 
-# Serve the way production does: OPENROUTER_* in .env, no reload.
+# Serve the way production does: HOSTED_INFERENCE_* in .env, no reload.
 run-prod:
     @test -f .env || (echo "no .env — run 'just setup' then add your key" && exit 1)
-    PROVIDER=openrouter uv run uvicorn server.app:app --port 8000
+    PROVIDER=hosted uv run uvicorn server.app:app --port 8000
 
 # Build the container image locally. Needs an index.db to bake in.
 docker:
@@ -87,11 +87,11 @@ deploy tag="latest":
       --image {{image}}:{{tag}} \
       --allow-unauthenticated --ingress all \
       --max-instances 2 --concurrency 20 --cpu 1 --memory 2Gi --timeout 300 \
-      --set-secrets OPENROUTER_API_KEY=openrouter-api-key:latest
+      --set-secrets HOSTED_INFERENCE_API_KEY=openrouter-api-key:latest
 
 # Run that image the way production does, against local Ollama.
 docker-run:
     docker run --rm -p 8000:8000 \
-      -e PROVIDER=ollama \
-      -e OLLAMA_BASE_URL=http://host.docker.internal:11434/v1 \
-      -e OLLAMA_MODEL="${OLLAMA_MODEL:-qwen3:8b}" ask-gen3
+      -e PROVIDER=local \
+      -e LOCAL_INFERENCE_URL=http://host.docker.internal:11434/v1 \
+      -e LOCAL_INFERENCE_MODEL="${LOCAL_INFERENCE_MODEL:-qwen3:8b}" ask-gen3

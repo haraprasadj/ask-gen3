@@ -98,15 +98,23 @@ jobs:
       # is instances x limit. Two instances keeps that arithmetic honest and
       # bounds what an attacker can bill. The OpenRouter spend cap bounds model
       # spend; nothing else bounds Cloud Run spend.
+      #
+      # The hosted endpoint and model come from repository variables, passed
+      # only when set; otherwise the server falls back to OpenRouter and the
+      # ADR-0007 model. Switching providers is two variables and a redeploy.
       - name: Deploy
         id: deploy
+        env:
+          HOSTED_URL: ${{ vars.HOSTED_INFERENCE_URL }}
+          HOSTED_MODEL: ${{ vars.HOSTED_INFERENCE_MODEL }}
         run: |
           gcloud run deploy "$NAME" \
             --image "${{ steps.build.outputs.repo_path }}@${{ steps.build.outputs.digest }}" \
             --region "$REGION" --project "${{ vars.GCP_PROJECT }}" \
             --allow-unauthenticated --ingress all \
             --max-instances 2 --concurrency 20 --cpu 1 --memory 2Gi --timeout 300 \
-            --set-secrets "OPENROUTER_API_KEY=${{ vars.OPENROUTER_SECRET_NAME || 'openrouter-api-key' }}:latest"
+            --set-env-vars "PROVIDER=hosted${HOSTED_URL:+,HOSTED_INFERENCE_URL=$HOSTED_URL}${HOSTED_MODEL:+,HOSTED_INFERENCE_MODEL=$HOSTED_MODEL}" \
+            --set-secrets "HOSTED_INFERENCE_API_KEY=${{ vars.HOSTED_INFERENCE_SECRET_NAME || 'openrouter-api-key' }}:latest"
           URL=$(gcloud run services describe "$NAME" --region "$REGION" \
             --project "${{ vars.GCP_PROJECT }}" --format='value(status.url)')
           echo "url=$URL" >> "$GITHUB_OUTPUT"

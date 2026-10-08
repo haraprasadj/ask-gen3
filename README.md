@@ -45,10 +45,10 @@ ollama pull qwen3:8b
 just run
 ```
 
-Any tool-capable tag works; set `OLLAMA_MODEL` in `.env` to pick a different one.
+Any tool-capable tag works; set `LOCAL_INFERENCE_MODEL` in `.env` to pick a different one.
 
 Open <http://localhost:8000>. For the hosted configuration, set
-`OPENROUTER_API_KEY` and use `just run-prod`.
+`HOSTED_INFERENCE_API_KEY` and use `just run-prod`.
 
 ## Usage
 
@@ -60,30 +60,34 @@ just check                # lint and every self-check
 just deploy               # build on Cloud Build, deploy a Cloud Run revision
 ```
 
-Configuration is environment variables, read from `.env`. Each provider owns
-its own base URL, model and key, so switching between them cannot half-apply:
+Configuration is environment variables, read from `.env`. There are two
+inference slots, local and hosted, and each owns its own URL, model and key, so
+switching between them cannot half-apply. Either slot takes any
+OpenAI-compatible endpoint:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PROVIDER` | `openrouter` | `ollama` or `openrouter`; picks which triple below is live. `.env.example` ships `ollama` for local work. `just run` forces `ollama`, `just run-prod` forces `openrouter` |
-| `OPENROUTER_API_KEY` | — | required when the provider is `openrouter` |
-| `OPENROUTER_MODEL` | `google/gemini-3.1-flash-lite` | any tool-capable model; benchmarked in [ADR-0007](docs/adr/0007-default-model-gemini-flash-lite.md). `openrouter/free` costs nothing but varies in quality |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | |
-| `OLLAMA_MODEL` | `qwen3:8b` | the tag `just run` serves. A tag name says nothing about size — `ollama show <tag>` does |
-| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | |
+| `PROVIDER` | `hosted` | `local` or `hosted`; picks which slot below is live. `.env.example` ships `local` for local work. `just run` forces `local`, `just run-prod` forces `hosted` |
+| `HOSTED_INFERENCE_API_KEY` | — | required when the slot is `hosted` |
+| `HOSTED_INFERENCE_MODEL` | `google/gemini-3.1-flash-lite` | any tool-capable model; benchmarked in [ADR-0007](docs/adr/0007-default-model-gemini-flash-lite.md). `openrouter/free` costs nothing but varies in quality. Set it whenever you change the URL: the default is an OpenRouter model ID |
+| `HOSTED_INFERENCE_URL` | `https://openrouter.ai/api/v1` | |
+| `LOCAL_INFERENCE_MODEL` | `qwen3:8b` | the model `just run` serves. A tag name says nothing about size — `ollama show <tag>` does |
+| `LOCAL_INFERENCE_URL` | `http://localhost:11434/v1` | |
+| `LOCAL_INFERENCE_API_KEY` | — | only for a local server that checks one; Ollama does not |
 | `INDEX_PATH` | `index.db` | where the index lives |
 | `RATE_LIMIT_PER_HOUR` | `20` | per-IP question limit |
 | `DAILY_QUESTION_CAP` | `2000` | per-instance daily ceiling |
 | `REQUEST_TIMEOUT_SECONDS` | `120` | wall-clock ceiling on one answer |
-| `PUBLIC_URL` | this repository | sent to OpenRouter as `HTTP-Referer`, which it uses to attribute traffic; set it to your deployment's address |
+| `PUBLIC_URL` | this repository | sent to OpenRouter as `HTTP-Referer`, which it uses to attribute traffic, and to no other endpoint; set it to your deployment's address |
 
 `just setup` creates a gitignored `.env` from `.env.example`; every recipe
 loads it. Set a hard spend limit on the OpenRouter key as well — it is the only
 budget ceiling that concurrency cannot exceed. See [SECURITY.md](SECURITY.md)
 for where every credential lives.
 
-Questions are sent to OpenRouter and the model it routes to, which are third
-parties. Nothing is stored: no question, no answer, no analytics, no cookie.
+Questions are sent to the hosted endpoint — OpenRouter and the model it routes
+to, by default — which are third parties. Nothing is stored: no question, no
+answer, no analytics, no cookie.
 [SECURITY.md](SECURITY.md) has the full list of what leaves and what is kept.
 
 ## How it works
@@ -108,6 +112,6 @@ Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Indexed
 content remains under the licences of the repositories it came from.
 
 Not affiliated with, endorsed by, or sponsored by the Gen3 project, the
-University of Chicago or the Center for Translational Data Science. "Gen3" and
-the Gen3 logo belong to their owners and are used here only to identify the
-software this tool indexes.
+University of Chicago or the Center for Translational Data Science. "Gen3"
+belongs to its owners and is used here only to identify the software this tool
+indexes.

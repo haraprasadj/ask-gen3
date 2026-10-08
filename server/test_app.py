@@ -72,15 +72,12 @@ def test_page_carries_a_nonce_and_a_policy() -> None:
     assert A.home().headers["content-security-policy"] != policy, "nonce is not per-response"
 
 
-def test_footer_names_the_live_provider() -> None:
-    live = A.agent.PROVIDER
-    try:
-        A.agent.PROVIDER = "ollama"
-        assert "openrouter.ai" not in A.home().body.decode()
-        A.agent.PROVIDER = "openrouter"
-        assert "openrouter.ai" in A.home().body.decode()
-    finally:
-        A.agent.PROVIDER = live
+def test_footer_names_the_configured_endpoint() -> None:
+    assert "openrouter.ai" in A.recipient("https://openrouter.ai/api/v1")
+    local = A.recipient("http://localhost:11434/v1")
+    assert "openrouter" not in local.lower() and "localhost" in local
+    # Configuration, not caller input, but it still lands in the page.
+    assert "<" not in A.recipient("https://<script>.example/v1")
 
 
 def test_history_from_the_body_is_filtered() -> None:
