@@ -72,7 +72,7 @@ def github_repos(org: str) -> list[dict]:
 
     while True:
         url = f"https://api.github.com/orgs/{org}/repos?per_page=100&page={page}"
-        batch = json.loads(urllib.request.urlopen(req(url)).read())
+        batch = json.loads(urllib.request.urlopen(req(url), timeout=30).read())
         if not batch:
             return [b for b in out if not b["archived"]]
         out += batch

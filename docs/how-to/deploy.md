@@ -81,10 +81,42 @@ curl https://<service>-<hash>-uc.a.run.app/health
 
 ## 4. Wire up CI deploys
 
+GitHub Actions signs in to Google Cloud with a short-lived OIDC token, so CI
+needs a service account to act as and a Workload Identity provider that trusts
+your repository. Set `REPO` to your fork's `owner/name`:
+
+```sh
+REPO=<owner>/ask-gen3
+NUM=$(gcloud projects describe ask-gen3 --format='value(projectNumber)')
+
+gcloud iam service-accounts create ask-gen3-deploy
+SA=ask-gen3-deploy@ask-gen3.iam.gserviceaccount.com
+for role in run.admin cloudbuild.builds.editor artifactregistry.writer logging.viewer; do
+  gcloud projects add-iam-policy-binding ask-gen3 --member="serviceAccount:$SA" --role="roles/$role"
+done
+# Deploying a revision means acting as its runtime service account.
+gcloud iam service-accounts add-iam-policy-binding "$NUM-compute@developer.gserviceaccount.com" \
+  --member="serviceAccount:$SA" --role=roles/iam.serviceAccountUser
+
+gcloud iam workload-identity-pools create github --location=global
+gcloud iam workload-identity-pools providers create-oidc ask-gen3 \
+  --location=global --workload-identity-pool=github \
+  --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref \
+  --attribute-condition="assertion.repository=='$REPO' && assertion.ref=='refs/heads/main'"
+gcloud iam service-accounts add-iam-policy-binding "$SA" --role=roles/iam.workloadIdentityUser \
+  --member="principalSet://iam.googleapis.com/projects/$NUM/locations/global/workloadIdentityPools/github/attribute.repository/$REPO"
+```
+
+The attribute condition is the security boundary. Without it, the provider
+accepts a token from any GitHub repository, and any of them can deploy as this
+service account. With it, only workflows on your `main` branch can.
+
 ```sh
 gh variable set GCP_PROJECT --body ask-gen3
-gh variable set GCP_WIF_PROVIDER --body <workload-identity-provider-resource-name>
-gh variable set GCP_DEPLOY_SA --body github-deploy@ask-gen3.iam.gserviceaccount.com
+gh variable set GCP_WIF_PROVIDER \
+  --body "projects/$NUM/locations/global/workloadIdentityPools/github/providers/ask-gen3"
+gh variable set GCP_DEPLOY_SA --body "$SA"
 ```
 
 `.github/workflows/deploy.yml` then runs automatically whenever an index build

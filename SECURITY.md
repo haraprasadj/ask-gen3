@@ -119,9 +119,9 @@ a control.
 
 What bounds the damage is that the tools still have no write path and reach no
 credential: four of them read a read-only SQLite file, and the fifth makes an
-outbound GET the model does not control the destination of. `fetch_url` is the
-one tool that acts outside the process, so it is constrained in `server/web.py`
-and tested in `server/test_web.py`:
+outbound GET to a URL the model chooses. `fetch_url` is the one tool that acts
+outside the process, so where it can go is constrained in `server/web.py` and
+tested in `server/test_web.py`:
 
 | Control | Why |
 |---|---|
