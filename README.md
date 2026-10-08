@@ -102,9 +102,7 @@ embedding API.
 - [Deploying](docs/how-to/deploy.md) — Cloud Run, Cloud Build and the CI deploy path
 - [Decision records](docs/adr/) — why SQLite, why local embeddings, why
   OpenRouter, why no framework, why Cloud Run, why a built-in fetch tool
-- [Overview slides](docs/overview.html) — the design and what it costs, as a
-  deck. GitHub shows its source, so open your clone's copy in a browser; print
-  it from there for a PDF
+- [Overview](docs/overview.md) — the design and what it costs, in one page
 
 ## License
 
