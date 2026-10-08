@@ -20,6 +20,7 @@ setup:
 test:
     uv run python -m ingest.test_schema
     uv run python -m ingest.test_chunk
+    uv run python -m ingest.test_build
     uv run python -m server.test_retrieve
     uv run python -m server.test_web
     uv run python -m server.test_agent

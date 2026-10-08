@@ -185,6 +185,28 @@ def open_db(out: pathlib.Path) -> sqlite3.Connection:
     return db
 
 
+def plan(
+    cfg: dict, listing: dict[str, dict], only: set[str] | None = None, skip_tier3: bool = False
+) -> dict[str, tuple[int, str]]:
+    """{repo: (tier, SPDX licence)} to index. A repo GitHub records no open
+    licence for is skipped: its content is all rights reserved, and index.db is
+    published as a build artifact and baked into the image that serves answers."""
+    tiers = {n: 1 for n in cfg["tier1"]} | {n: 2 for n in cfg["tier2"]}
+    if only:
+        tiers = {n: tiers.get(n, 2) for n in only}
+    elif not skip_tier3:
+        known = set(tiers) | set(cfg["exclude"])
+        tiers |= {n: 3 for n in listing if n not in known}
+    out = {}
+    for name, tier in tiers.items():
+        spdx = (listing.get(name, {}).get("license") or {}).get("spdx_id")
+        if spdx in (None, "NOASSERTION"):
+            log(f"  ! skipping {name}: no open licence recorded on GitHub")
+            continue
+        out[name] = (tier, spdx)
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="index.db", type=pathlib.Path)
@@ -195,25 +217,18 @@ def main() -> int:
 
     cfg = yaml.safe_load(CONFIG.read_text())
     org, excl_paths = cfg["org"], cfg["exclude_paths"]
-    tiers: dict[str, int] = {}
-    for name in cfg["tier1"]:
-        tiers[name] = 1
-    for name in cfg["tier2"]:
-        tiers[name] = 2
-    if not args.skip_tier3 and not args.only:
-        known = set(tiers) | set(cfg["exclude"])
-        for r in github_repos(org):
-            if r["name"] not in known:
-                tiers[r["name"]] = 3
-    if args.only:
-        keep = {n.strip() for n in args.only.split(",")}
-        tiers = {n: tiers.get(n, 2) for n in keep}
+    only = {n.strip() for n in args.only.split(",")} if args.only else None
+    # Fetched even for --only: it carries every repo's licence.
+    listing = {r["name"]: r for r in github_repos(org)}
+    tiers = plan(cfg, listing, only=only, skip_tier3=args.skip_tier3)
 
     args.workdir.mkdir(parents=True, exist_ok=True)
     db = open_db(args.out)
 
     all_chunks: list[tuple[str, Chunk]] = []
-    for i, (name, tier) in enumerate(sorted(tiers.items(), key=lambda kv: (kv[1], kv[0])), 1):
+    for i, (name, (tier, licence)) in enumerate(
+        sorted(tiers.items(), key=lambda kv: (kv[1][0], kv[0])), 1
+    ):
         log(f"[{i}/{len(tiers)}] tier{tier} {name}")
         repo_dir = clone(org, name, args.workdir)
         if repo_dir is None:
@@ -230,7 +245,7 @@ def main() -> int:
                 tier,
                 head_sha(repo_dir),
                 head_branch(repo_dir),
-                None,
+                licence,
                 datetime.now(UTC).isoformat(timespec="seconds"),
             ),
         )

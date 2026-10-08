@@ -17,5 +17,7 @@ affiliated with, endorsed by, or sponsored by the Gen3 project, the University
 of Chicago, or the Center for Translational Data Science.
 
 The index this project builds contains excerpts of source and documentation
-from the uc-cdis GitHub organisation. Each excerpt remains under the licence of
-the repository it came from, and every answer cites the file and lines it used.
+from the uc-cdis GitHub organisation, taken only from repositories GitHub
+records an open licence for. Each excerpt remains under the licence of the
+repository it came from, recorded in the index's repos table, and every
+answer cites the file and lines it used.
