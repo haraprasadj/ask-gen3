@@ -82,6 +82,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
   3.13, whose current builds load SQLite extensions. It works on Linux too.
 
+- `requires-python` is `>=3.13`, the only version CI, the image and
+  `.python-version` use, rather than an untested `>=3.11`.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
