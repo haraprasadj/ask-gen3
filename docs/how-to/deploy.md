@@ -34,7 +34,7 @@ gcloud artifacts repositories create ask-gen3 \
 ## 2. Store the API key
 
 ```sh
-grep '^OPENROUTER_API_KEY=' .env | cut -d= -f2- | tr -d '"'"'"' ' | tr -d '\n' |
+grep '^HOSTED_INFERENCE_API_KEY=' .env | cut -d= -f2- | tr -d '"'"'"' ' | tr -d '\n' |
   gcloud secrets create openrouter-api-key --data-file=- --replication-policy=automatic
 ```
 
@@ -132,8 +132,19 @@ service account key is stored in GitHub.
 If the secret is named something other than `openrouter-api-key`:
 
 ```sh
-gh variable set OPENROUTER_SECRET_NAME --body <name>
+gh variable set HOSTED_INFERENCE_SECRET_NAME --body <name>
 ```
+
+To serve from an OpenAI-compatible endpoint other than OpenRouter, store its
+key as a secret (step 2, under a new name, and set the variable above), then:
+
+```sh
+gh variable set HOSTED_INFERENCE_URL --body https://api.example.com/v1
+gh variable set HOSTED_INFERENCE_MODEL --body <model-id>
+```
+
+The next deploy picks them up. Unset, both fall back to OpenRouter and the
+default model.
 
 Verify what a deploy published:
 

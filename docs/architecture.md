@@ -206,7 +206,7 @@ where the design gets lazy:
 - No accounts, no cookies, no PII, and no request logging beyond unhandled
   errors. The index is opened read-only, so nothing written at runtime reaches
   it.
-- `OPENROUTER_API_KEY` comes from Secret Manager, mounted at revision start
+- `HOSTED_INFERENCE_API_KEY` comes from Secret Manager, mounted at revision start
   at module load, and a gitignored `.env` locally. It is the only long-lived
   secret: index builds use the ephemeral `github.token`, and deploys use Workload Identity
   Federation rather than a stored service account key. The browser talks only to this

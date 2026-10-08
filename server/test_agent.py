@@ -208,21 +208,26 @@ def test_model_failure_is_caught() -> None:
 
 
 def test_provider_resolution_is_per_provider_and_fails_loudly() -> None:
-    """Each provider owns its three variables, so a switch cannot half-apply:
-    an OLLAMA_* value must never leak into an OpenRouter run."""
+    """Each slot owns its three variables, so a switch cannot half-apply:
+    a LOCAL_* value must never leak into a hosted run."""
     env = {
-        "OLLAMA_MODEL": "gemma4:e4b",
-        "OLLAMA_BASE_URL": "http://localhost:11434/v1",
-        "OPENROUTER_API_KEY": "sk-test",
+        "LOCAL_INFERENCE_MODEL": "gemma4:e4b",
+        "LOCAL_INFERENCE_URL": "http://localhost:11434/v1",
+        "HOSTED_INFERENCE_API_KEY": "sk-test",
     }
-    assert agent.resolve("ollama", env) == ("http://localhost:11434/v1", "gemma4:e4b", "ollama")
-    base_url, model, api_key = agent.resolve("openrouter", env)
-    assert model == "google/gemini-3.1-flash-lite", "an Ollama tag reached OpenRouter"
-    assert (base_url, api_key) == ("https://openrouter.ai/api/v1", "sk-test")
+    assert agent.resolve("local", env) == ("http://localhost:11434/v1", "gemma4:e4b", "unused")
+    url, model, api_key = agent.resolve("hosted", env)
+    assert model == "google/gemini-3.1-flash-lite", "a local model reached the hosted slot"
+    assert (url, api_key) == ("https://openrouter.ai/api/v1", "sk-test")
 
     # Unset and empty both fall back; an empty string is what a blank .env line
-    # gives, and it must not become the base URL.
-    assert agent.resolve("ollama", {"OLLAMA_BASE_URL": ""})[0] == "http://localhost:11434/v1"
+    # or an unset repo variable on deploy gives, and it must not become the URL.
+    assert agent.resolve("local", {"LOCAL_INFERENCE_URL": ""})[0] == "http://localhost:11434/v1"
+
+    # OpenRouter's attribution headers go to OpenRouter only.
+    assert agent.is_openrouter("https://openrouter.ai/api/v1")
+    assert not agent.is_openrouter("https://api.together.xyz/v1")
+    assert not agent.is_openrouter("https://openrouter.ai.example/v1")
 
     try:
         agent.resolve("openai", env)

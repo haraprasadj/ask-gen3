@@ -11,37 +11,44 @@ import json
 import os
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
 
 from openai import OpenAI
 
 from server import retrieve, web
 
-# One shape per provider: a base URL, a model and a key. PROVIDER picks which
-# triple is live, and every value is a plain environment variable — so .env
-# drives it locally and Cloud Run sets the same names on the revision.
+# Two slots, each a URL, a model and a key for any OpenAI-compatible endpoint.
+# PROVIDER picks which slot is live, and every value is a plain environment
+# variable, so .env drives it locally and Cloud Run sets the same names on the
+# revision. Local defaults to Ollama, hosted to OpenRouter.
 PROVIDERS = {
-    "ollama": ("http://localhost:11434/v1", "qwen3:8b", "ollama"),  # key ignored
-    "openrouter": ("https://openrouter.ai/api/v1", "google/gemini-3.1-flash-lite", ""),  # ADR-0007
+    # Most local servers ignore the key, but the client refuses an empty one.
+    "local": ("http://localhost:11434/v1", "qwen3:8b", "unused"),
+    "hosted": ("https://openrouter.ai/api/v1", "google/gemini-3.1-flash-lite", ""),  # ADR-0007
 }
 
 
 def resolve(provider: str, env: Mapping[str, str] | None = None) -> tuple[str, str, str]:
-    """(base_url, model, api_key) for one provider, from <PROVIDER>_-prefixed
-    variables over the defaults above. An unknown name fails here, at startup,
-    rather than as a 500 on somebody's first question."""
+    """(url, model, api_key) for one slot, from <SLOT>_INFERENCE_* variables
+    over the defaults above. An unknown name fails here, at startup, rather
+    than as a 500 on somebody's first question."""
     env = os.environ if env is None else env
     if provider not in PROVIDERS:
         raise ValueError(f"PROVIDER={provider!r}: expected one of {', '.join(PROVIDERS)}")
-    base_url, model, api_key = PROVIDERS[provider]
-    prefix = provider.upper()
+    url, model, api_key = PROVIDERS[provider]
+    prefix = f"{provider.upper()}_INFERENCE"
     return (
-        env.get(f"{prefix}_BASE_URL") or base_url,
+        env.get(f"{prefix}_URL") or url,
         env.get(f"{prefix}_MODEL") or model,
         env.get(f"{prefix}_API_KEY") or api_key,
     )
 
 
-PROVIDER = os.environ.get("PROVIDER", "openrouter")
+def is_openrouter(url: str) -> bool:
+    return web.host_matches(urlparse(url).hostname or "", ("openrouter.ai",))
+
+
+PROVIDER = os.environ.get("PROVIDER", "hosted")
 BASE_URL, MODEL, API_KEY = resolve(PROVIDER)
 # Every call in a question re-sends the whole conversation, so what costs money
 # is the sum across calls, not the size of any one prompt. At flash-lite rates
@@ -271,17 +278,18 @@ def history_messages(history: list[dict]) -> list[dict]:
 
 
 def _client() -> OpenAI:
-    return OpenAI(
-        base_url=BASE_URL,
-        api_key=API_KEY,
-        timeout=60.0,
-        default_headers={
-            # OpenRouter attributes traffic to this URL. Not uc-cdis: this
-            # project is not theirs, and the header would say otherwise.
+    # OpenRouter attributes traffic to this URL. Not uc-cdis: this project is
+    # not theirs, and the header would say otherwise. Other endpoints get
+    # neither header.
+    headers = (
+        {
             "HTTP-Referer": os.environ.get("PUBLIC_URL", "https://github.com/haraprasadj/ask-gen3"),
             "X-Title": "ask-gen3",
-        },
+        }
+        if is_openrouter(BASE_URL)
+        else {}
     )
+    return OpenAI(base_url=BASE_URL, api_key=API_KEY, timeout=60.0, default_headers=headers)
 
 
 def _collect_tool_calls(chunks_acc: dict) -> list[dict]:
@@ -298,7 +306,9 @@ def answer(
         return
 
     if client is None and not API_KEY:
-        yield Event("error", f"No API key: set {PROVIDER.upper()}_API_KEY (see .env.example).")
+        yield Event(
+            "error", f"No API key: set {PROVIDER.upper()}_INFERENCE_API_KEY (see .env.example)."
+        )
         return
     client = client or _client()
     messages: list[dict] = [

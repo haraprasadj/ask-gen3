@@ -6,12 +6,14 @@ adapter, because Cloud Run streams server-sent events natively (ADR-0008).
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import secrets
 import threading
 import time
 import traceback
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -157,13 +159,15 @@ async def ask(request: Request) -> StreamingResponse:
     )
 
 
-# Who sees the question, named per provider: a local Ollama run must not tell
-# its user the question went to a third party, and vice versa.
-RECIPIENTS = {
-    "openrouter": '<a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>'
-    " and the model it routes to",
-    "ollama": "the Ollama server this instance is configured with",
-}
+def recipient(url: str) -> str:
+    """Who sees the question, named from the configured URL: a local run must
+    not tell its user the question went to a third party, and vice versa."""
+    if agent.is_openrouter(url):
+        return (
+            '<a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>'
+            " and the model it routes to"
+        )
+    return f"the model server at {html.escape(urlparse(url).hostname or 'an unknown host')}"
 
 
 @app.get("/")
@@ -182,7 +186,7 @@ def home() -> HTMLResponse:
     page = (
         PAGE.replace("{{logo}}", LOGO)
         .replace("{{footer}}", footer)
-        .replace("{{recipient}}", RECIPIENTS.get(agent.PROVIDER, "a model provider"))
+        .replace("{{recipient}}", recipient(agent.BASE_URL))
         .replace("{{nonce}}", nonce)
     )
     return HTMLResponse(
