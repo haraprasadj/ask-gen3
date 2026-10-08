@@ -74,6 +74,20 @@ def test_tool_call_split_across_deltas() -> None:
     assert tool_msgs and tool_msgs[0]["tool_call_id"] == "c1"
 
 
+def test_the_answer_carries_the_indexed_commit_of_each_repo() -> None:
+    """The page pins citation links to these, so line ranges match what was read."""
+    sha = "a" * 40
+    hit = agent.retrieve.Hit(1, "uc-cdis/fence", "fence/f.py", 1, 2, "code", None, None, "x", sha)
+    turns = [
+        [delta(tool_calls=[call_delta(0, "c1", "search", '{"query": "refresh"}')])],
+        [delta(content="See [fence/fence/f.py#L1-L2].")],
+    ]
+    agent.run_tool = lambda name, args: (hit.render(), [hit])
+    final = list(agent.answer("refresh tokens?", FakeClient(turns)))[-1]
+    assert final.kind == "answer", final
+    assert final.data["commits"] == {"fence": sha}, final.data
+
+
 def test_the_token_budget_terminates_the_loop() -> None:
     """A model that only ever calls tools must still stop. These turns report no
     usage at all, so termination rests on the estimator fallback — a provider

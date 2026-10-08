@@ -249,6 +249,26 @@ def test_a_path_with_a_space_links_and_is_encoded() -> None:
     assert f'href="{want}"' in html, html
 
 
+def test_citations_pin_to_the_indexed_commit_when_known() -> None:
+    if not shutil.which("node"):
+        print("  (node not found — citation check skipped)")
+        return
+    start = A.PAGE.index("const esc =")
+    source = A.PAGE[start : A.PAGE.index("let streaming = false;")]
+    sha = "0123456789abcdef0123456789abcdef01234567"
+    text = "x [fence/fence/f.py#L1-L2] [indexd/i.py#L3-L4] [__proto__/p.py#L5-L6]"
+    script = (
+        f"{source}\ncommits = {json.dumps({'fence': sha})};\n"
+        f"console.log(render({json.dumps(text)}));"
+    )
+    html = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True).stdout
+    base = "https://github.com/uc-cdis"
+    assert f'href="{base}/fence/blob/{sha}/fence/f.py#L1-L2"' in html, html
+    # Repos the answer did not search stay on the default branch.
+    assert f'href="{base}/indexd/blob/HEAD/i.py#L3-L4"' in html, html
+    assert f'href="{base}/__proto__/blob/HEAD/p.py#L5-L6"' in html, html
+
+
 if __name__ == "__main__":
     # Every test_* function, not a hand-kept list: the list once left two of
     # them, the /ask stream and the malformed-body checks, never running.

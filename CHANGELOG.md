@@ -91,6 +91,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Citation links pointed at each repository's default branch, so once a cited
+  file changed after indexing the highlighted lines no longer matched what the
+  answer read. A finished answer now links to the indexed commit.
 - Citations into paths containing a space, such as gen3.org's
   `archived pages/` (24 indexed files), stayed plain text. They now link, with
   the space encoded.

@@ -344,6 +344,11 @@ const esc = s => s.replace(/[&<>"']/g, c =>
 // github.com/fence/fence. The path may contain spaces (gen3.org has an
 // "archived pages/" folder); the repo segment may not, so prose cannot match.
 const CITE = /\[(?:uc-cdis\/)?([\w.-]+)\/([^\]]+?)#L(\d+)-L(\d+)\]/g;
+// Indexed commit per repo, from the finished answer; empty while streaming,
+// when links fall back to the default branch. hasOwn, so a repo named
+// __proto__ cannot read a prototype property.
+let commits = {};
+const ref = repo => Object.hasOwn(commits, repo) ? commits[repo] : 'HEAD';
 // Models also group markers, [a#L1-L2, b#L3-L4]; split them so CITE sees each.
 const GROUP = /\[([^\]]*#L\d+-L\d+(?:\s*[,;]\s*[^\],;]*#L\d+-L\d+)+)\]/g;
 
@@ -357,7 +362,7 @@ function inline(s) {
     .replace(/\[([\w.-]+\/[^\]]+?#L\d+-L\d+)\]\(https?:[^)\s]+\)/g, '[$1]')
     .replace(GROUP, (m, list) => list.split(/\s*[,;]\s*/).map(c => `[${c}]`).join(' '))
     .replace(CITE, (m, repo, path, a, b) =>
-      `<cite><a target="_blank" rel="noopener" href="https://github.com/uc-cdis/${repo}/blob/HEAD/${path.replace(/ /g, '%20')}#L${a}-L${b}">${path}:${a}</a></cite>`)
+      `<cite><a target="_blank" rel="noopener" href="https://github.com/uc-cdis/${repo}/blob/${ref(repo)}/${path.replace(/ /g, '%20')}#L${a}-L${b}">${path}:${a}</a></cite>`)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
       '<a target="_blank" rel="noopener" href="$2">$1</a>')
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,
@@ -513,7 +518,9 @@ f.onsubmit = async e => {
       } else if (kind === 'token') {
         buffer += d.text; answer.innerHTML = render(buffer);
       } else if (kind === 'answer') {
+        commits = d.commits || {};
         answer.innerHTML = render(d.text);
+        commits = {};
         const meta = document.createElement('div');
         meta.className = 'meta';
         meta.textContent = `${d.steps} steps · ${d.seconds}s · ${d.usage.prompt_tokens + d.usage.completion_tokens} tokens`;

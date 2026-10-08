@@ -392,6 +392,13 @@ def answer(
                         for h in cited.values()
                         if h.citation in content
                     ],
+                    # The commit each searched repo was indexed at, so the page
+                    # can link citations to the lines that were actually read.
+                    "commits": {
+                        h.repo.split("/", 1)[-1]: h.commit_sha
+                        for h in cited.values()
+                        if h.commit_sha
+                    },
                     "usage": usage,
                     "steps": step,
                 },
