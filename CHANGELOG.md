@@ -92,6 +92,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Security:** `fetch_url` read a response in full before trimming it to
+  300 kB, so the cap bounded what reached the model but not memory: one fetch
+  of a very large allowlisted file could exhaust the instance. The body is now
+  streamed and reading stops at the cap.
 - `just test` crashed on a fresh clone: `evals/check.py` opened `index.db`
   unconditionally. Citations are now checked only for repositories the index
   holds, and the rest are counted as skipped, so it passes with no index, the
