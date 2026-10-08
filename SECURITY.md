@@ -63,6 +63,12 @@ There is no database of usage, no analytics, and no cookie.
 | Provenance | SLSA attestation binding the image digest to the workflow run, pushed to the registry |
 | SBOM | SPDX, generated from the image and attached to the run |
 
+The Trivy gate, the SBOM and the attestation run only in `deploy.yml`.
+`just deploy` builds on Cloud Build and deploys without any of them; it is for
+the first deploy and for when CI is unavailable. An image it pushed is tagged
+`latest`, not a commit SHA, and has no attestation, so the check below fails
+for it.
+
 Verify a published image before trusting it:
 
 ```

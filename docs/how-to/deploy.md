@@ -69,6 +69,10 @@ that matters is `--max-instances 2`: the rate limits in `server/app.py` are
 per-instance counters, so the real ceiling is instances × limit, and this is
 what stops an abusive client from billing you for a hundred of them.
 
+The recipe does not scan the image, generate an SBOM or attest provenance;
+only the CI workflow in step 4 does. Use the recipe to bootstrap, then deploy
+through CI so every running image can be verified.
+
 It prints the service URL. Check it:
 
 ```sh
