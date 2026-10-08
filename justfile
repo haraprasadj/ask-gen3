@@ -69,6 +69,7 @@ docker:
     docker build -t ask-gen3 .
 
 # Build on Cloud Build and roll out a new Cloud Run revision (docs/how-to/deploy.md).
+# No CVE gate, SBOM or attestation: those run only in deploy.yml (SECURITY.md).
 # Override the project the way CI does: `just gcp_project=my-project deploy`.
 deploy tag="latest":
     @test -f index.db || (echo "no index.db — run 'just index' first" && exit 1)
