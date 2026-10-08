@@ -343,6 +343,8 @@ const esc = s => s.replace(/[&<>"']/g, c =>
 // in the URL: small models drop it, and [fence/fence/x.py] must not become
 // github.com/fence/fence.
 const CITE = /\[(?:uc-cdis\/)?([\w.-]+)\/([^\]\s]+?)#L(\d+)-L(\d+)\]/g;
+// Models also group markers, [a#L1-L2, b#L3-L4]; split them so CITE sees each.
+const GROUP = /\[([^\]]*#L\d+-L\d+(?:\s*[,;]\s*[^\],;]*#L\d+-L\d+)+)\]/g;
 
 // Everything below runs on already-escaped text, so no raw HTML can get through.
 function inline(s) {
@@ -352,6 +354,7 @@ function inline(s) {
     // Some models wrap the citation in a markdown link; drop their URL and let
     // CITE build the canonical one, or the bare-URL rule renders it twice.
     .replace(/\[([\w.-]+\/[^\]\s]+?#L\d+-L\d+)\]\(https?:[^)\s]+\)/g, '[$1]')
+    .replace(GROUP, (m, list) => list.split(/\s*[,;]\s*/).map(c => `[${c}]`).join(' '))
     .replace(CITE, (m, repo, path, a, b) =>
       `<cite><a target="_blank" rel="noopener" href="https://github.com/uc-cdis/${repo}/blob/HEAD/${path}#L${a}-L${b}">${path}:${a}</a></cite>`)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
