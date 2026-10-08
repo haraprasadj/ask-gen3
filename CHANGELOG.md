@@ -77,6 +77,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   than a planned Cloudflare, answer cache and request-logging setup that was
   never built.
 
+- `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
+  3.13, whose current builds load SQLite extensions. It works on Linux too.
+
 ### Removed
 
 - The 6-step and 25,000-character prompt limits, and the two hand-synced
