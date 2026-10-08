@@ -23,7 +23,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
 # Fail the build, not the first request, if this base image happens to ship a
-# CPython without loadable SQLite extensions (see README prerequisites).
+# CPython without loadable SQLite extensions, which sqlite-vec needs.
 RUN uv run --no-sync python -c "\
 import sqlite3, sqlite_vec; c = sqlite3.connect(':memory:'); \
 c.enable_load_extension(True); sqlite_vec.load(c); \

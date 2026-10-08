@@ -80,6 +80,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - CI runs `just check` and `just audit` instead of its own copy of their
   commands. The copy had drifted: `server.test_web`, the `fetch_url` SSRF
   checks, and the evals file check never ran in CI.
+- `just setup` no longer needs Homebrew: it is `uv sync` on uv's own Python
+  3.13, whose current builds load SQLite extensions. It works on Linux too.
 
 ### Removed
 
