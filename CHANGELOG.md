@@ -96,6 +96,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   300 kB, so the cap bounded what reached the model but not memory: one fetch
   of a very large allowlisted file could exhaust the instance. The body is now
   streamed and reading stops at the cap.
+- **Security:** an unhandled error in `/ask` logged the exception's message,
+  which can carry the question or an upstream response body, while SECURITY.md
+  promised only its type. It now logs the type and the line that raised it.
 - `just test` crashed on a fresh clone: `evals/check.py` opened `index.db`
   unconditionally. Citations are now checked only for repositories the index
   holds, and the rest are counted as skipped, so it passes with no index, the

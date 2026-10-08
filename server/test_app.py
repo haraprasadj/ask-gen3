@@ -9,6 +9,8 @@ wrong once, and both of which cost real money or run real script when they are.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import re
 import shutil
@@ -134,6 +136,29 @@ def test_ask_streams_sse_frames_and_forwards_the_history() -> None:
         payload = re.search(r"^data: (.*)$", frame, re.MULTILINE).group(1)
         json.loads(payload)
     assert "Half an answer" in response.text
+
+
+def test_a_crash_logs_its_type_not_its_message() -> None:
+    """An exception message can carry the question, or an upstream body;
+    SECURITY.md promises neither reaches the logs."""
+    original = A.agent.answer
+
+    def boom(q, client=None, history=None):
+        raise RuntimeError(f"upstream echoed: {q}")
+        yield
+
+    A.agent.answer = boom
+    try:
+        A._buckets.clear()
+        log = io.StringIO()
+        with contextlib.redirect_stdout(log):
+            response = TestClient(A.app).post("/ask", json={"q": "my private question"})
+        assert "Something broke" in response.text
+        assert "RuntimeError" in log.getvalue(), log.getvalue()
+        assert "private question" not in log.getvalue(), log.getvalue()
+        assert "private question" not in response.text.replace('"q"', "")
+    finally:
+        A.agent.answer = original
 
 
 def test_a_body_that_is_not_a_question_is_survivable() -> None:
