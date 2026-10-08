@@ -91,8 +91,17 @@ NUM=$(gcloud projects describe ask-gen3 --format='value(projectNumber)')
 
 gcloud iam service-accounts create ask-gen3-deploy
 SA=ask-gen3-deploy@ask-gen3.iam.gserviceaccount.com
-for role in run.admin cloudbuild.builds.editor artifactregistry.writer logging.viewer; do
+for role in run.admin cloudbuild.builds.editor artifactregistry.writer logging.viewer \
+    serviceusage.serviceUsageConsumer; do
   gcloud projects add-iam-policy-binding ask-gen3 --member="serviceAccount:$SA" --role="roles/$role"
+done
+# `gcloud builds submit` uploads the source to this bucket, and reads the
+# bucket before writing to it. Without the reader role, the upload fails with
+# "forbidden from accessing the bucket" even though object access is granted.
+# The bucket exists once Cloud Build has run once, which step 3 does.
+for role in storage.objectAdmin storage.legacyBucketReader; do
+  gcloud storage buckets add-iam-policy-binding gs://ask-gen3_cloudbuild \
+    --member="serviceAccount:$SA" --role="roles/$role"
 done
 # Deploying a revision means acting as its runtime service account.
 gcloud iam service-accounts add-iam-policy-binding "$NUM-compute@developer.gserviceaccount.com" \
@@ -183,3 +192,4 @@ concurrency, a bug, or an abusive client cannot exceed.
 | Answers arrive all at once, not streamed | A proxy is buffering. Cloud Run itself does not; the app sets `X-Accel-Buffering: no` |
 | `/health` reports `index unavailable` | `index.db` was not baked into the image |
 | First request takes 5 s | Cold start, expected. `--min-instances 1` fixes it and costs money at idle |
+| CI deploy: `forbidden from accessing the bucket [ask-gen3_cloudbuild]` | The deploy service account is missing `serviceusage.serviceUsageConsumer` or `storage.legacyBucketReader` on that bucket (step 4). `just deploy` works regardless, because it runs as you |
