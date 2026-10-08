@@ -108,6 +108,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `server/test_app.py` never ran two of its checks, the `/ask` stream framing
   and the malformed-body cases: its hand-kept call list had missed them. It now
   runs every `test_*` function, as the other self-checks do.
+- SECURITY.md presented the image CVE gate, SBOM and provenance attestation
+  as covering every deployed image. They run only in `deploy.yml`; it now says
+  `just deploy` ships without them, as do the deploy guide and the recipe.
 - A citation written without its org, `[fence/fence/x.py#L1-L5]`, linked to
   `github.com/fence/fence/...`, a 404. The org is now optional in the marker
   and always `uc-cdis` in the link.
