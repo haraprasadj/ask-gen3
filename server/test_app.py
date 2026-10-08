@@ -215,6 +215,26 @@ def test_citation_without_the_org_still_links_to_uc_cdis() -> None:
         assert f'href="{want}"' in html, f"{marker} -> {html}"
 
 
+def test_grouped_citations_each_become_a_link() -> None:
+    if not shutil.which("node"):
+        print("  (node not found — citation check skipped)")
+        return
+    start = A.PAGE.index("const esc =")
+    source = A.PAGE[start : A.PAGE.index("let streaming = false;")]
+    base = "https://github.com/uc-cdis"
+    # Models put several markers in one bracket; each must still link.
+    for text in (
+        "x [uc-cdis/docs-gen3/a/key.md#L38-L39, uc-cdis/indexd/b.py#L5-L9].",
+        "x [docs-gen3/a/key.md#L38-L39; indexd/b.py#L5-L9].",
+    ):
+        script = f"{source}\nconsole.log(render({json.dumps(text)}));"
+        html = subprocess.run(
+            ["node", "-e", script], capture_output=True, text=True, check=True
+        ).stdout
+        assert f'href="{base}/docs-gen3/blob/HEAD/a/key.md#L38-L39"' in html, html
+        assert f'href="{base}/indexd/blob/HEAD/b.py#L5-L9"' in html, html
+
+
 if __name__ == "__main__":
     # Every test_* function, not a hand-kept list: the list once left two of
     # them, the /ask stream and the malformed-body checks, never running.

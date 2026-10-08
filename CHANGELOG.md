@@ -91,6 +91,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Citations grouped in one bracket, `[a#L1-L2, b#L3-L4]`, stayed plain text.
+  They are split and each links to its file.
 - The `deploy` workflow could not fetch `index.db`: its token lacked
   `actions: read`, so listing the index workflow's runs failed with HTTP 403.
 - **Security:** `fetch_url` read a response in full before trimming it to
