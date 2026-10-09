@@ -12,8 +12,8 @@ once, then deploys are a button. The reasoning behind this shape is
 - [gcloud](https://cloud.google.com/sdk/docs/install), authenticated:
   `gcloud init`
 - An OpenRouter API key
-- A built `index.db` — `just index` for the full corpus, which takes about an
-  hour
+- An `index.db`: `just fetch-index` downloads the current one, or `just index`
+  builds the full corpus in about an hour
 
 Docker is not needed. Cloud Build builds the image.
 
@@ -133,7 +133,7 @@ gh variable set GCP_DEPLOY_SA --body "$SA"
 succeeds, and on demand from the Actions tab. The index workflow itself is
 started by hand: a stale index is not an outage, and a scheduled workflow
 auto-disables after 60 idle days. It downloads `index.db` from
-the index run, submits the build to Cloud Build, scans the image and stops on a
+the `index` release the index workflow publishes, submits the build to Cloud Build, scans the image and stops on a
 fixable HIGH or CRITICAL CVE, attaches an SBOM and a provenance attestation,
 deploys the new revision by digest, and fails the run if `/health` does not come
 back with a non-empty index. Authentication is Workload Identity Federation — no
