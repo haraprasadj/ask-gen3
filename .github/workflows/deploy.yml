@@ -68,7 +68,13 @@ jobs:
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "repo_path=$REGION-docker.pkg.dev/${{ vars.GCP_PROJECT }}/$NAME/app" >> "$GITHUB_OUTPUT"
-          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          # A stored login rather than `gcloud auth configure-docker`: that
+          # registers a credential helper, which Trivy and the SBOM step
+          # follow but the attestation's registry push does not. The token is
+          # the federated one from the auth step, valid for about an hour on
+          # a runner that is thrown away afterwards.
+          gcloud auth print-access-token | docker login -u oauth2accesstoken \
+            --password-stdin "https://$REGION-docker.pkg.dev"
 
       # Between the image being built and it serving traffic is the only place
       # a CVE gate can still stop a release. Dependabot catches the same things
