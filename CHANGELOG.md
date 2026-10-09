@@ -9,6 +9,37 @@ which `just changelog` collects into a new version section here.
 
 <!-- scriv-insert-here -->
 
+<a id='changelog-0.3.0'></a>
+## [0.3.0] - 2026-10-09
+
+### Added
+
+- `just fetch-index` downloads the prebuilt full index, so running against the
+  whole corpus no longer means building it first.
+
+### Changed
+
+- CodeQL runs on every pull request, on pushes to `main` and weekly again,
+  as SECURITY.md says. Its triggers were removed while code scanning was
+  unavailable on the private repository.
+- The overview is a Markdown page, `docs/overview.md`, that GitHub renders,
+  instead of an HTML slide deck you had to open from a clone. Its figures
+  now match the current index and deployment.
+- The index workflow publishes `index.db` as the asset of the `index` release
+  instead of a workflow artifact, and deploys fetch it from there
+  ([ADR-0012](docs/adr/0012-index-published-as-a-release-asset.md)). The
+  artifact expired after 30 days, after which every deploy failed. The deploy
+  workflow's `index_run_id` input is gone; to deploy an earlier index,
+  redeploy an earlier image.
+
+### Fixed
+
+- The first deploy from the public repository failed at the provenance
+  attestation with "No credentials found for registry". The deploy now logs
+  in to Artifact Registry with a stored, short-lived token, which the
+  attestation's push can use, instead of a gcloud credential helper, which
+  it cannot.
+
 <a id='changelog-0.2.0'></a>
 ## [0.2.0] - 2026-10-08
 
