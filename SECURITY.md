@@ -15,7 +15,7 @@ either ephemeral or federated.
 | Credential | Where it lives | Notes |
 |---|---|---|
 | `HOSTED_INFERENCE_API_KEY` | local: `.env`, gitignored — production: Google Secret Manager, mounted into the Cloud Run revision at start | the only standing secret |
-| GitHub API token (index build) | not stored — the workflow uses the automatic `github.token` | scoped to one run, expires with it |
+| GitHub API token (index build) | not stored — the workflow uses the automatic `github.token` | scoped to one run, expires with it. Read-only in the job that processes repository content; a separate publish job can write, to update the `index` release |
 | GCP deploy credentials | not stored — GitHub Actions uses Workload Identity Federation | no service account key in repository secrets |
 | Hugging Face token | not needed — weights are baked into the image and `HF_HUB_OFFLINE=1` is set | |
 | Local model access | not needed — Ollama takes no key | |

@@ -37,6 +37,8 @@ Build a small index from two repositories, then ask it something:
 just index-dev
 ```
 
+Or download the full prebuilt index, about 60 MB, with `just fetch-index`.
+
 Answers need a model. Locally, point at [Ollama](https://ollama.com) with any
 tool-capable model:
 
@@ -54,7 +56,8 @@ Open <http://localhost:8000>. For the hosted configuration, set
 
 ```sh
 just                      # list recipes
-just index                # full corpus, about an hour
+just fetch-index          # download the prebuilt full index
+just index                # build the full corpus, about an hour
 just index "--only fence" # one repository
 just check                # lint and every self-check
 just deploy               # build on Cloud Build, deploy a Cloud Run revision
@@ -101,7 +104,7 @@ embedding API.
   abuse controls
 - [Deploying](docs/how-to/deploy.md) — Cloud Run, Cloud Build and the CI deploy path
 - [Decision records](docs/adr/) — why SQLite, why local embeddings, why
-  OpenRouter, why no framework, why Cloud Run, why a built-in fetch tool
+  OpenRouter, why no framework, why Cloud Run, why a built-in fetch tool, why the index is a release asset
 - [Overview](docs/overview.md) — the design and what it costs, in one page
 
 ## License

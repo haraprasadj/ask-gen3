@@ -8,6 +8,9 @@ Accepted. Delivery mechanism amended by [ADR-0006](0006-lambda-container-deploym
 the index ships inside the Lambda container image rather than as a release asset
 fetched at boot. The weekly cadence is amended by
 [ADR-0011](0011-index-rebuilt-on-demand.md): builds run on demand.
+The hand-off from build to deploy is amended by
+[ADR-0012](0012-index-published-as-a-release-asset.md): a release asset
+with a fixed tag, replacing the workflow artifact.
 
 ## Context
 

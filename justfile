@@ -6,6 +6,7 @@ set dotenv-load := true
 name := "ask-gen3"
 region := env("REGION", "us-central1")
 gcp_project := env("GCP_PROJECT", "ask-gen3")
+repo := "haraprasadj/ask-gen3"
 image := region + "-docker.pkg.dev/" + gcp_project + "/" + name + "/app"
 
 default:
@@ -57,6 +58,14 @@ audit:
 index args="":
     uv run python -m ingest.build --out index.db {{args}}
 
+# Download the prebuilt full index from the `index` release instead of building it.
+# Through a temporary file, so a failed download never leaves half an index;
+# chmod because mktemp's 0600 is unreadable to the container's runtime user.
+fetch-index:
+    tmp=$(mktemp) && curl -fL --progress-bar -o "$tmp" \
+      https://github.com/{{repo}}/releases/download/index/index.db \
+      && chmod 644 "$tmp" && mv "$tmp" index.db
+
 # A two-repo index for development, in about two minutes.
 index-dev:
     uv run python -m ingest.build --only indexd,dictionaryutils --out index.db
@@ -81,7 +90,7 @@ docker:
 # No CVE gate, SBOM or attestation: those run only in deploy.yml (SECURITY.md).
 # Override the project the way CI does: `just gcp_project=my-project deploy`.
 deploy tag="latest":
-    @test -f index.db || (echo "no index.db — run 'just index' first" && exit 1)
+    @test -f index.db || (echo "no index.db — run 'just fetch-index' first" && exit 1)
     gcloud builds submit --tag {{image}}:{{tag}} --region={{region}} --project={{gcp_project}}
     gcloud run deploy {{name}} --region {{region}} --project {{gcp_project}} \
       --image {{image}}:{{tag}} \

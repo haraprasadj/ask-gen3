@@ -27,8 +27,44 @@ jobs:
           print(dict(d.execute('select key,value from meta')));\
           print(d.execute('select count(*) from repos').fetchone()[0],'repos')" \
             >> $GITHUB_STEP_SUMMARY
+      # Only a hand-off to the publish job, so it need not outlive the run.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: index-db
           path: index.db
-          retention-days: 30
+          retention-days: 1
+
+  # A separate job so that write access never shares a job with the build,
+  # which parses content from every indexed repository. The release has one
+  # fixed tag, so its download URL never changes (ADR-0012).
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: index-db
+      - name: Publish the index release
+        run: |
+          python3 - > notes.md <<'PY'
+          import sqlite3
+          d = sqlite3.connect("index.db")
+          m = dict(d.execute("select key, value from meta"))
+          n = d.execute("select count(*) from repos").fetchone()[0]
+          print(f"Built {m['built_at']}: {m['chunk_count']} chunks from {n} repositories, "
+                f"embedded with {m['embedding_model']}.\n")
+          print("Replaced by every run of the index workflow; `just fetch-index` downloads it. "
+                "Each excerpt remains under the licence of the repository it came from (NOTICE).")
+          PY
+          if gh release view index > /dev/null 2>&1; then
+            gh release upload index index.db --clobber
+            gh release edit index --notes-file notes.md
+          else
+            gh release create index index.db --title "Prebuilt index" \
+              --notes-file notes.md --latest=false --target "$GITHUB_SHA"
+          fi
